@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+
+if __name__ == "__main__":
+    import sys
+    import myppy
+    res = myppy.main(sys.argv)
+    sys.exit(res)
+

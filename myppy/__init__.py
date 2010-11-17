@@ -1,4 +1,6 @@
-
+#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
+#  All rights reserved; available under the terms of the BSD License.
+"""
 
 myppy:  make you a portable python
 ==================================
@@ -94,4 +96,60 @@ References
 
 .. _signedimp:   http://pypi.python.org/pypi/signedimp/
 
+
+"""
+
+__ver_major__ = 0
+__ver_minor__ = 1
+__ver_patch__ = 0
+__ver_sub__ = ""
+__ver_tuple__ = (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
+__version__ = "%d.%d.%d%s" % __ver_tuple__
+
+
+import sys
+
+if sys.platform == "darwin":
+    from myppy.envs.osx import MyppyEnv
+elif sys.platform == "linux2":
+    from myppy.envs.linux import MyppyEnv
+else:
+    raise ImportError("myppy not available on platform %r" % (sys.platform,))
+
+
+
+def main(argv):
+    """Main function implementing myppy's command-line interface."""
+    if len(argv) < 2:
+        argv = argv + [".","help"]
+    elif len(argv) < 3:
+        argv = argv + ["help"]
+    target = MyppyEnv(argv[1])
+    cmd = argv[2]
+    args = argv[3:]
+    if cmd == "help":
+        print "Myppy:  no help yet, read the source"
+    elif cmd == "init":
+        target.init()
+    elif cmd == "clean":
+        target.clean()
+    elif cmd == "install":
+        for arg in args:
+            target.load_recipe(arg)
+        for arg in args:
+            target.install(arg)
+    elif cmd == "uninstall":
+        for arg in args:
+            target.load_recipe(arg)
+        for arg in args:
+            target.uninstall(arg)
+    elif cmd == "shell":
+        target.do("sh",shell=True)
+    elif cmd == "do":
+        target.do(*args,shell=True)
+    else:
+        print "Unknown command: ", cmd
+        return 1
+    return 0
+         
 
