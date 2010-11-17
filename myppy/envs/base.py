@@ -52,8 +52,10 @@ class MyppyEnv(object):
         self._has_db_lock = 0
         if not os.path.exists(self.rootdir):
             os.makedirs(self.rootdir)
-        self._db = sqlite3.connect(os.path.join(self.rootdir,self.DB_NAME),
-                                   isolation_level=None)
+        dbpath = os.path.join(self.rootdir,self.DB_NAME)
+        if not os.path.exists(os.path.dirname(dbpath)):
+            os.makedirs(os.path.dirname(dbpath))
+        self._db = sqlite3.connect(dbpath,isolation_level=None)
         self._initdb()
 
     def __enter__(self):
@@ -152,7 +154,6 @@ class MyppyEnv(object):
                 print "INSTALLING", recipe
                 r.install()
                 files = list(self.find_new_files())
-                self.fixup_files(recipe,files)
                 self.record_files(recipe,files)
                 print "INSTALLED", recipe
 
@@ -169,13 +170,16 @@ class MyppyEnv(object):
                 assert util.relpath(file) == file
                 filepath = os.path.join(self.rootdir,file)
                 if filepath.endswith(os.sep):
+                    print "PRUNING", filepath
                     util.prune_dir(filepath)
                 else:
+                    print "REMOVING", filepath
                     os.unlink(filepath)
                     dirpath = os.path.dirname(filepath) + os.sep
                     if not os.listdir(dirpath):
                         q = "SELECT * FROM installed_files WHERE filepath=?"
                         if not self._is_oldfile(dirpath):
+                            print "PRUNING", filepath
                             util.prune_dir(dirpath)
                 
     def load_recipe(self,recipe):
@@ -204,7 +208,7 @@ class MyppyEnv(object):
                 dirnms[:] = []
             else:
                 if not filenms:
-                    if not self._is_oldfile(filepath):
+                    if not self._is_oldfile(dirpath + os.sep):
                         yield dirpath + os.sep
                 else:
                     for filenm in filenms:
@@ -213,10 +217,8 @@ class MyppyEnv(object):
                             if not self._is_oldfile(filepath):
                                 yield filepath
 
-    def fixup_files(self,recipe,files):
-        assert files, "recipe '%s' didn't install any files" % (recipe,)
-
     def record_files(self,recipe,files):
+        assert files, "recipe '%s' didn't install any files" % (recipe,)
         for file in files:
             file = file[len(self.rootdir)+1:]
             assert util.relpath(file) == file

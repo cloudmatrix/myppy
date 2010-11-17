@@ -10,6 +10,6 @@ v0.1.0:
       Now I've got this crazy notion to try the same thing for win32, and
       the name just keeps on changing...
 
-      So the project is new, but the code has been kicked around a few
-      times.
+      So the project is new, but the code has been kicked around a fair bit.
+      I think I've got it mostly right this time.
 

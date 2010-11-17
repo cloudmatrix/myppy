@@ -350,7 +350,9 @@ class lib_zlib(Recipe):
     SOURCE_URL = "http://zlib.net/zlib-1.2.5.tar.gz"
     SOURCE_MD5 = "c735eab2d659a96e5a594c9e8541ad63"
     CONFIGURE_ARGS = ("--static",)
-    def _patch(self):
+    CONFIGURE_VARS = None
+    def _configure(self):
+        super(lib_zlib,self)._configure()
         def dont_copy_dylib(lines):
             for ln in lines:
                 if not ln.strip().startswith("cp $(SHAREDLIBV)"):
@@ -448,7 +450,6 @@ class py_myppy(Recipe):
         if os.path.exists(os.path.join(spdir,"myppy")):
             shutil.rmtree(os.path.join(spdir,"myppy"))
         shutil.copytree(myppy_root,os.path.join(spdir,"myppy"))
-
 
 
 class lib_wxwidgets_base(Recipe):

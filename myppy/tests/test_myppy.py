@@ -21,7 +21,7 @@ class TestMyppy(unittest.TestCase):
     it with the contents of myppy.__doc__.
     """
     dirname = os.path.dirname
-    readme = os.path.join(dirname(dirname(dirname(__file__))),"README.txt")
+    readme = os.path.join(dirname(dirname(dirname(__file__))),"README.rst")
     if not os.path.isfile(readme):
         f = open(readme,"wb")
         f.write(myppy.__doc__.encode())

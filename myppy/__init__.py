@@ -108,6 +108,7 @@ __version__ = "%d.%d.%d%s" % __ver_tuple__
 
 
 import sys
+import subprocess
 
 if sys.platform == "darwin":
     from myppy.envs.osx import MyppyEnv
@@ -128,28 +129,91 @@ def main(argv):
     cmd = argv[2]
     args = argv[3:]
     if cmd == "help":
-        print "Myppy:  no help yet, read the source"
-    elif cmd == "init":
+        print ""
+        print "myppy: make you a portable python"
+        print ""
+        print "usage:      myppy <rootdir> <cmd> <args>"
+        print "commands:"
+        maxcmdlen = max(len(cls.__name__) for cls in _cmd.__subclasses__())
+        for cls in _cmd.__subclasses__():
+            nm = cls.__name__[1:]
+            padding = " " * (maxcmdlen - len(nm)) + " "
+            print "           ", nm+":", padding, cls.__doc__
+        return 0
+    try:
+        cmd = globals()["_"+cmd]
+    except KeyError:
+        print "Unknown command:", cmd
+        return 1
+    if not issubclass(cmd,_cmd) or cmd is _cmd:
+        print "Unknown command:", cmd
+        return 1
+    res = cmd.run(target,args) or 0
+    return res
+         
+
+class _cmd(object):
+    """command base class - help string goes here."""
+    @staticmethod
+    def run(target,args):
+        pass
+
+class _init(_cmd):
+    """initialise a new portable python env"""
+    @staticmethod
+    def run(target,args):
+        assert not args
         target.init()
-    elif cmd == "clean":
+
+class _clean(_cmd):
+    """clean out temporary files (e.g. build files)"""
+    @staticmethod
+    def run(target,args):
+        assert not args
         target.clean()
-    elif cmd == "install":
+
+class _install(_cmd):
+    """install recipes into the env"""
+    @staticmethod
+    def run(target,args):
         for arg in args:
             target.load_recipe(arg)
         for arg in args:
             target.install(arg)
-    elif cmd == "uninstall":
-        for arg in args:
-            target.load_recipe(arg)
+
+class _uninstall(_cmd):
+    """uninstall recipes from the env"""
+    @staticmethod
+    def run(target,args):
         for arg in args:
             target.uninstall(arg)
-    elif cmd == "shell":
-        target.do("sh",shell=True)
-    elif cmd == "do":
-        target.do(*args,shell=True)
-    else:
-        print "Unknown command: ", cmd
-        return 1
-    return 0
-         
+
+class _shell(_cmd):
+    """start an interactive shell inside env"""
+    @staticmethod
+    def run(target,args):
+        assert not args
+        try:
+            target.do("sh",shell=True)
+        except subprocess.CalledProcessError, e:
+            return e.returncode
+
+class _do(_cmd):
+    """run a subprocess inside the env"""
+    @staticmethod
+    def run(target,args):
+        assert args
+        try:
+            target.do(*args,shell=True)
+        except subprocess.CalledProcessError, e:
+            return e.returncode
+
+class _record(_cmd):
+    """record files installed by hand"""
+    @staticmethod
+    def run(target,args):
+        (recipe,) = args
+        files = target.find_new_files()
+        target.record_files(recipe,files)
+
 
