@@ -206,6 +206,8 @@ class MyppyEnv(object):
                 return True
         if os.path.basename(path) == "myppy.db":
             return True
+        if os.path.basename(path) == "myppy.db-journal":
+            return True
         return False
 
     def _is_oldfile(self,file):
