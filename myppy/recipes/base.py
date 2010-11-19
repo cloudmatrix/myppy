@@ -12,7 +12,7 @@ import subprocess
 import shutil
 
 import myppy
-from myppy.util import md5file, do, bt, cd, relpath, tempdir
+from myppy.util import md5file, do, bt, cd, relpath, tempdir, chstdin
 
 
 class _RecipeMetaclass(type):
@@ -484,6 +484,10 @@ class lib_qt4(Recipe):
     SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
     CONFIGURE_ARGS = ("-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-libmng","-shared","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs",)
     CONFIGURE_VARS = None
+    def _configure(self):
+        # automatically accept the LGPL
+        with chstdin("yes"):
+            super(lib_qt4,self)._configure()
 
 
 class py_wxpython(PyRecipe):

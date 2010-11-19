@@ -13,7 +13,7 @@ import subprocess
 import shutil
 from textwrap import dedent
 
-from myppy.util import md5file, do, bt, cd, relpath, tempdir
+from myppy.util import md5file, do, bt, cd, relpath, tempdir, chstdin
 
 from myppy.recipes import base
 
@@ -106,7 +106,8 @@ class apbuild_base(Recipe):
         with tempdir() as workdir:
             updir = self._unpack()
             try:
-                self.target.do("bash",os.path.join(updir,"install"),"--prefix",self.target.PREFIX,"--silent")
+                with chstdin("y"):
+                    self.target.do("bash",os.path.join(updir,"install"),"--prefix",self.target.PREFIX,"--silent")
             except subprocess.CalledProcessError:
                 pass
         open(os.path.join(self.target.PREFIX,"lib","apbuild-base--installed.txt"),"wb").close()

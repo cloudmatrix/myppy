@@ -51,6 +51,20 @@ class tempdir:
             else:
                 shutil.rmtree(self.path)
 
+@contextlib.contextmanager
+def chstdin(new_stdin):
+    """Context manager changing standard input"""
+    old_stdin = sys.stdin
+    try:
+        if isinstance(new_stdin,basestring):
+            sys.stdin = tempfile.TemporaryFile()
+            sys.stdin.write(new_stdin)
+            sys.stdin.seek(0)
+        else:
+            sys.stdin = new_stdin
+        yield
+    finally:
+        sys.stdin = old_stdin
 
 def which(name):
     """Just like the "which" shell command."""

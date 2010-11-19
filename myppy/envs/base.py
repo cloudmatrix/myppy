@@ -39,6 +39,8 @@ class MyppyEnv(object):
 
     """
  
+    DEPENDENCIES = ["python27","py_pip","py_myppy"]
+
     DB_NAME = os.path.join("local","myppy.db")
 
     def __init__(self,rootdir):
@@ -81,8 +83,6 @@ class MyppyEnv(object):
         else:
             self.env[key] = path
 
-    DEPENDENCIES = ["python27","py_pip","py_myppy"]
-
     @property
     def PREFIX(self):
         return os.path.join(self.rootdir,"local")
@@ -97,7 +97,7 @@ class MyppyEnv(object):
 
     @property
     def PYTHON_LIBRARY(self):
-        return os.path.join(self.PREFIX,"lib","python2.7.so")
+        return os.path.join(self.PREFIX,"lib","libpython2.7.so")
 
     @property
     def SITE_PACKAGES(self):
@@ -106,7 +106,7 @@ class MyppyEnv(object):
     def init(self):
         """Build the base myppy python environment."""
         for dep in self.DEPENDENCIES:
-            self.install(dep)
+            self.install(dep,initialising=True)
         
     def clean(self):
         """Clean out temporary built files and the like."""
@@ -117,7 +117,10 @@ class MyppyEnv(object):
         """Execute the given command within this myppy environment."""
         env = self.env.copy()
         env.update(kwds.pop("env",{}))
-        subprocess.check_call(cmdline,env=env,**kwds)
+        stdin = kwds.pop("stdin",None)
+        if stdin is None:
+            stdin = sys.stdin
+        subprocess.check_call(cmdline,env=env,stdin=stdin,**kwds)
 
     def bt(self,*cmdline,**kwds):
         """Execute the command within this myppy environment, return stdout.
@@ -127,25 +130,37 @@ class MyppyEnv(object):
         """
         env = self.env.copy()
         env.update(kwds.pop("env",{}))
-        p = subprocess.Popen(cmdline,stdout=subprocess.PIPE,env=env,**kwds)
+        stdin = kwds.pop("stdin",None)
+        if stdin is None:
+            stdin = sys.stdin
+        stdout = subprocess.PIPE
+        p = subprocess.Popen(cmdline,stdout=stdout,env=env,stdin=stdin,**kwds)
         output = p.stdout.read()
         retcode = p.wait()
         if retcode != 0:
             raise subprocess.CalledProcessError(retcode,cmdline)
         return output
 
+    def is_initialised(self):
+        for dep in self.DEPENDENCIES:
+            if not self.is_installed(dep):
+                return False
+        return True
+
     def is_installed(self,recipe):
         q = "SELECT filepath FROM installed_files WHERE recipe=?"\
             " LIMIT 1"
         return (self._db.execute(q,(recipe,)).fetchone() is not None)
   
-    def install(self,recipe):
+    def install(self,recipe,initialising=False):
         """Install the named recipe into this myppy env."""
         if not self.is_installed(recipe):
             r = self.load_recipe(recipe)
+            if not initialising and not self.is_initialised():
+                self.init()
             for dep in r.DEPENDENCIES:
                 if dep != recipe:
-                    self.install(dep)
+                    self.install(dep,initialising=initialising)
             print "FETCHING", recipe
             r.fetch()
             with self:
