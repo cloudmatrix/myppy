@@ -16,9 +16,12 @@ from myppy.util import md5file, do, bt, cd, relpath, tempdir, chstdin
 
 
 class _RecipeMetaclass(type):
+    DEPENDENCIES = []
     def __new__(mcls,name,bases,attrs):
         DEPENDENCIES = list(attrs.get("DEPENDENCIES",[]))
         for base in bases:
+            if not isinstance(base,_RecipeMetaclass):
+                continue
             for dep in base.DEPENDENCIES:
                 if dep not in DEPENDENCIES:
                     DEPENDENCIES.append(dep)
@@ -29,6 +32,8 @@ class _RecipeMetaclass(type):
 
 class Recipe(object):
     """Base class for installation recipes."""
+
+    __metaclass__ = _RecipeMetaclass
 
     DEPENDENCIES = []
     SOURCE_URL = "http://source.url.is/missing.txt"
@@ -336,8 +341,10 @@ class lib_bz2(Recipe):
     SOURCE_URL = "http://www.bzip.org/1.0.5/bzip2-1.0.5.tar.gz"
     SOURCE_MD5 = "3c15a0c8d1d3ee1c46a1634d00617b1a"
     @property
-    def CONFIGURE_VARS(self):
+    def MAKE_VARS(self):
         return ("PREFIX=" + self.target.PREFIX,)
+    def _configure(self):
+        pass
 
 
 class lib_readline(Recipe):
