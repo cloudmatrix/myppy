@@ -111,7 +111,7 @@ import sys
 import subprocess
 
 if sys.platform == "darwin":
-    from myppy.envs.osx import MyppyEnv
+    from myppy.envs.macosx import MyppyEnv
 elif sys.platform == "linux2":
     from myppy.envs.linux import MyppyEnv
 else:

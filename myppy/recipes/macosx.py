@@ -19,8 +19,11 @@ from myppy.recipes import base
 
 class Recipe(base.Recipe):
 
-    TARGET_ARCHS = ["i386","ppc"]
     ISYSROOT = "/Developer/SDKs/MacOSX10.4u.sdk"
+
+    @property
+    def TARGET_ARCHS(self):
+       return self.target.TARGET_ARCHS
 
     @property
     def CC(self):
@@ -36,7 +39,7 @@ class Recipe(base.Recipe):
 
     @property
     def LDFLAGS(self):
-        return "-L" + os.path.join(self.target.PREFIX,"lib")
+        return "-L" + os.path.join(self.target.PREFIX,"lib") + " -lstdc++"
 
     @property
     def INCFLAGS(self):
@@ -45,12 +48,12 @@ class Recipe(base.Recipe):
     @property
     def CFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
+        return "%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CXXFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
+        return "%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CONFIGURE_VARS(self):
@@ -61,10 +64,10 @@ class Recipe(base.Recipe):
                 "CXXFLAGS="+self.CXXFLAGS,]
     @property
     def MAKE_VARS(self):
-        return ["CC="+self.CC,"CXX="+self.CXX,"CFLAGS="+self.CFLAGS]
+        return ["CFLAGS="+self.CFLAGS]
 
     @property
-    def DYLB_FALLBACK_LIBRARY_PATH(self):
+    def DYLD_FALLBACK_LIBRARY_PATH(self):
         return os.path.join(self.target.PREFIX,"lib")
 
     def _generic_configure(self,script=None,vars=None,args=None,env={}):
@@ -77,17 +80,35 @@ class Recipe(base.Recipe):
 
     def _generic_make(self,vars=None,relpath=None,env={}):
         """Do a generic "make" for this recipe."""
+        workdir = self._get_builddir()
+        if vars is None:
+            vars = self.MAKE_VARS
+        if relpath is None:
+            relpath = self.MAKE_RELPATH
+        cmd = ["make","CC="+self.CC,"CXX="+self.CXX]
+        cmd.extend(vars)
+        cmd.extend(("-C",os.path.join(workdir,relpath)))
         env = env.copy()
         env.setdefault("DYLD_FALLBACK_LIBRARY_PATH",self.DYLD_FALLBACK_LIBRARY_PATH)
-        super(Recipe,self)._generic_make(vars,relpath,env)
+        self.target.do(*cmd,env=env)
+
 
     def _generic_makeinstall(self,vars=None,relpath=None,env={}):
-        """Do a generic "make" for this recipe."""
+        """Do a generic "make install" for this recipe."""
+        workdir = self._get_builddir()
+        if vars is None:
+            vars = self.MAKE_VARS
+        if relpath is None:
+            relpath = self.MAKE_RELPATH
+        cmd = ["make","CC="+self.CC,"CXX="+self.CXX]
+        cmd.extend(vars)
+        cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
         env = env.copy()
         env.setdefault("DYLD_FALLBACK_LIBRARY_PATH",self.DYLD_FALLBACK_LIBRARY_PATH)
-        super(Recipe,self)._generic_make(vars,relpath,env)
+        self.target.do(*cmd,env=env)
 
-    def _get_builddir(self,src):
+
+    def _get_builddir(self):
         """Get the directory in which we build the given tarball.
 
         This is always <PREFIX>/tmp/build/<tarballname>/<srcdirname>/
@@ -107,11 +128,11 @@ class NWayRecipe(Recipe):
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0 -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,))
+        return "/usr/bin/gcc-4.0 -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
 
     @property
     def CXX(self):
-        return "/usr/bin/g++-4.0 -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,))
+        return "/usr/bin/g++-4.0 -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
 
     @property
     def CFLAGS(self):
@@ -146,25 +167,31 @@ class NWayRecipe(Recipe):
         for (arch,archdir) in archdirs:
             if os.path.exists(os.path.join(archdir,"Makefile")):
                 with cd(archdir):
-                    self.target.do("make","clean")
+                    try:
+                        self.target.do("make","clean")
+                    except subprocess.CalledProcessError:
+                        pass
             self.TARGET_ARCH = arch
             self.CONFIGURE_DIR = archdir
             self._generic_configure(script,vars,args,env)
         self.TARGET_ARCH = None
 
-    def _nway_make(self,vars=[],relpath=""):
+    def _nway_make(self,vars=None,relpath=""):
         """Do a generic "make" separate for each architecture."""
         workdir = self._get_builddir()
         for arch in self.TARGET_ARCHS:
             if arch == self.LOCAL_ARCH:
-                archdir = workdir
-            else:
-                archdir = os.path.join(os.path.dirname(workdir),arch)
+                continue
+            archdir = os.path.join(os.path.dirname(workdir),arch)
+            if not os.path.exists(archdir):
+                shutil.copytree(workdir,archdir)
             self.TARGET_ARCH = arch
             nway_relpath = os.path.join(workdir,archdir)
             self._generic_make(vars,nway_relpath)
+        self.TARGET_ARCH = self.LOCAL_ARCH
+        self._generic_make(vars)
 
-    def _nway_merge(self,src,relpath="."):
+    def _nway_merge(self,relpath="."):
         """Merge separately-compiled archs into fat binaries."""
         workdir = self._get_builddir()
         #  Create the fat binaries in a separate dir
@@ -201,7 +228,7 @@ class NWayRecipe(Recipe):
                 shutil.copy2(filepath,workdir+relfilepath)
 
 
-class CMakeRecipe(Recipe,base.CMakeRecipe):
+class CMakeRecipe(base.CMakeRecipe,Recipe):
     def _generic_cmake(self,src,relpath=".",args=[],env={}):
         """Do a generic "cmake" on the given source tarball."""
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
@@ -223,26 +250,51 @@ class CMakeRecipe(Recipe,base.CMakeRecipe):
 
 
 
-class PyCMakeRecipe(CMakeRecipe,base.PyCMakeRecipe):
+class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
     pass
 
 
-class python27(Recipe,base.python27):
+class python27(base.python27,Recipe):
     """Install the basic Python interpreter, with myppy support."""
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0 -lz -mmacosx-version-min=10.4 -isysroot " + self.ISYSROOT
-
-
-class lib_sqlite3(NWayRecipe,base.lib_sqlite3):
+        return "/usr/bin/gcc-4.0 -L%s -lz -mmacosx-version-min=10.4 -isysroot %s" % (os.path.join(self.target.PREFIX,"lib"),self.ISYSROOT,)
 
     @property
+    def CONFIGURE_ARGS(self):
+        #  We install *everything* under the Python.framework directory, which
+        #  makes python install symlinks that point to themselves.  Use a fake
+        #  prefix to avoid this, then just delete it later.
+        return ["--enable-universalsdk",
+                "--enable-framework="+self.target.rootdir,
+                "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
+
+    def _patch(self):
+        super(python27,self)._patch()
+        def handle_duplicate_arch_names(lines):
+            for ln in lines:
+                if ln.strip() == "archs.sort()":
+                    yield " "*ln.index("archs")
+                    yield "archs = list(set(archs))\n"
+                    yield ln
+                else:
+                    yield ln
+        self._patch_build_file("Lib/sysconfig.py",handle_duplicate_arch_names)
+        self._patch_build_file("Lib/distutils/util.py",handle_duplicate_arch_names)
+
+    def install(self):
+        super(python27,self).install()
+        shutil.rmtree(os.path.join(self.target.rootdir,"fake-prefix"))
+
+
+class lib_sqlite3(base.lib_sqlite3,NWayRecipe):
+    @property
     def MAKE_VARS(self):
-        return ["CC="+self.CC,"CXX="+self.CXX,"CFLAGS=-DSQLITE_ENABLE_LOCKING_STYLE=0"]
+        return ["CFLAGS=-DSQLITE_ENABLE_LOCKING_STYLE=0 "+self.CFLAGS]
 
 
-class lib_wxwidgets_base(Recipe,base.lib_wxwidgets_base):
+class lib_wxwidgets_base(base.lib_wxwidgets_base,NWayRecipe):
     def _patch(self):
         def add_explicit_casts(lines):
             for ln in lines:
@@ -260,33 +312,39 @@ class lib_wxwidgets_base(Recipe,base.lib_wxwidgets_base):
                 self.patch_build_file(filepath,add_explicit_casts)
 
 
-class lib_wxwidgets_gizmos(lib_wxwidgets_base,base.lib_wxwidgets_base):
+class lib_wxwidgets_gizmos(base.lib_wxwidgets_base,NWayRecipe):
     pass
 
 
-class lib_wxwidgets_stc(lib_wxwidgets_stc,base.lib_wxwidgets_stc):
+class lib_wxwidgets_stc(base.lib_wxwidgets_stc,NWayRecipe):
     pass
 
 
-class py_wxpython(Recipe,base.py_wxpython):
+class py_wxpython(base.py_wxpython,Recipe):
     def install(self):
         wxconfig = os.path.join(self.target.PREFIX,"bin","wx-config")
-        self._generic_pyinstall(src,relpath="wxPython"args=["WX_CONFIG="+wxconfig])
+        self._generic_pyinstall(src,relpath="wxPython",args=["WX_CONFIG="+wxconfig])
 
 
-class lib_jpeg(NWayRecipe,base.lib_jpeg):
+class lib_jpeg(base.lib_jpeg,NWayRecipe):
     pass
 
 
-class lib_png(NWayRecipe,base.lib_png):
+class lib_png(base.lib_png,NWayRecipe):
     pass
 
 
-class lib_tiff(NWayRecipe,base.lib_tiff):
+class lib_tiff(base.lib_tiff,NWayRecipe):
     pass
 
 
-class lib_qt4(Recipe,base.lib_qt4):
+class lib_zlib(base.lib_zlib,NWayRecipe):
+    pass
+
+class lib_bz2(base.lib_bz2,NWayRecipe):
+    pass
+
+class lib_qt4(base.lib_qt4,Recipe):
     DEPENDENCIES = ["lib_icu"]
     CONFIGURE_ARGS = ["-no-framework","-universal"]
     CONFIGURE_ARGS.extend(base.lib_qt4.CONFIGURE_ARGS)
@@ -305,19 +363,13 @@ class lib_icu(Recipe):
     CONFIGURE_SCRIPT = "./source/configure"
 
 
-class lib_xml2(NWayRecipe,base.lib_xml2):
+class lib_xml2(base.lib_xml2,NWayRecipe):
     pass
 
-class lib_xslt(NWayRecipe,base.lib_xslt):
-    pass
-
-
-class lib_shiboken(PyCMakeRecipe,base.lib_shiboken):
+class lib_xslt(base.lib_xslt,NWayRecipe):
     pass
 
 
-class py_pyside(PyCMakeRecipe,base.py_pyside):
-    pass
 #        for nm in os.listdir(os.path.join(spdir,"PySide")):
 #            if nm.endswith(".so"):
 #                sopath = os.path.join(spdir,"PySide",nm)

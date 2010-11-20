@@ -213,7 +213,6 @@ class MyppyEnv(object):
     def _is_oldfile(self,file):
         file = file[len(self.rootdir)+1:]
         assert util.relpath(file) == file
-        assert os.path.exists(os.path.join(self.rootdir,file))
         q = "SELECT * FROM installed_files WHERE filepath=?"
         if not self._db.execute(q,(file,)).fetchone():
             return False
@@ -239,7 +238,8 @@ class MyppyEnv(object):
         for file in files:
             file = file[len(self.rootdir)+1:]
             assert util.relpath(file) == file
-            assert os.path.exists(os.path.join(self.rootdir,file))
+            assert os.path.exists(os.path.join(self.rootdir,file)),\
+                   "file has gone missing: "+os.path.join(self.rootdir,file)
             self._db.execute("INSERT INTO installed_files VALUES (?,?)",
                              (recipe,file,))
 
