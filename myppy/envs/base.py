@@ -168,6 +168,7 @@ class MyppyEnv(object):
                 r.build()
                 print "INSTALLING", recipe
                 r.install()
+                print "RECORDING INSTALLED FILES FOR", recipe
                 files = list(self.find_new_files())
                 self.record_files(recipe,files)
                 print "INSTALLED", recipe
