@@ -194,6 +194,7 @@ class CMakeRecipe(Recipe):
     def _generic_cmake(self,relpath=".",args=[],env={}):
         cmd = ["cmake"]
         cmd.append("-DCMAKE_INSTALL_PREFIX=%s" % (self.target.PREFIX,))
+        cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
         for arg in args:
             cmd.append(arg)
         with cd(self._get_builddir()):
@@ -212,6 +213,8 @@ class PyCMakeRecipe(CMakeRecipe):
 
 class cmake(Recipe):
     SOURCE_URL = "http://www.cmake.org/files/v2.8/cmake-2.8.3.tar.gz"
+    CONFIGURE_VARS = None
+    MAKE_VARS = ["VERBOSE=1"]
 
 
 class python27(Recipe):
