@@ -256,14 +256,19 @@ class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
 
 class python27(base.python27,Recipe):
     """Install the basic Python interpreter, with myppy support."""
+
     @property
     def CC(self):
         return "/usr/bin/gcc-4.0 -L%s -lz -mmacosx-version-min=10.4 -isysroot %s" % (os.path.join(self.target.PREFIX,"lib"),self.ISYSROOT,)
 
     @property
     def CONFIGURE_ARGS(self):
+        #  We install *everything* under the Python.framework directory, which
+        #  makes python install symlinks that point to themselves.  Use a fake
+        #  prefix to avoid this, then just delete it later.
         return ["--enable-universalsdk",
-                "--enable-framework="+self.target.rootdir]
+                "--enable-framework="+self.target.rootdir,
+                "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
 
     def _patch(self):
         super(python27,self)._patch()
@@ -277,6 +282,11 @@ class python27(base.python27,Recipe):
                     yield ln
         self._patch_build_file("Lib/sysconfig.py",handle_duplicate_arch_names)
         self._patch_build_file("Lib/distutils/util.py",handle_duplicate_arch_names)
+
+    def install(self):
+        super(python27,self).install()
+        shutil.rmtree(os.path.join(self.target.rootdir,"fake-prefix"))
+
 
 class lib_sqlite3(base.lib_sqlite3,NWayRecipe):
     @property
