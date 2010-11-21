@@ -110,8 +110,10 @@ class MyppyEnv(object):
         
     def clean(self):
         """Clean out temporary built files and the like."""
-        shutil.rmtree(self.builddir)
-        shutil.rmtree(self.cachedir)
+        if os.path.exists(self.cachedir):
+            shutil.rmtree(self.builddir)
+        if os.path.exists(self.cachedir):
+            shutil.rmtree(self.cachedir)
 
     def do(self,*cmdline,**kwds):
         """Execute the given command within this myppy environment."""
@@ -168,6 +170,7 @@ class MyppyEnv(object):
                 r.build()
                 print "INSTALLING", recipe
                 r.install()
+                print "RECORDING INSTALLED FILES FOR", recipe
                 files = list(self.find_new_files())
                 self.record_files(recipe,files)
                 print "INSTALLED", recipe
@@ -219,19 +222,32 @@ class MyppyEnv(object):
         return True
  
     def find_new_files(self):
-        for (dirpath,dirnms,filenms) in os.walk(self.rootdir):
-            if self._is_tempfile(dirpath):
-                dirnms[:] = []
+        #  os.walk has a bad habit of choking on unicode errors, so
+        #  we do it by hand and get it right.
+        todo = [self.rootdir]
+        while todo:
+            dirpath = todo.pop(0)
+            names = os.listdir(dirpath)
+            if not names:
+                if not self._is_oldfile(dirpath + os.sep):
+                    yield dirpath + os.sep
             else:
-                if not filenms:
-                    if not self._is_oldfile(dirpath + os.sep):
-                        yield dirpath + os.sep
-                else:
-                    for filenm in filenms:
-                        filepath = os.path.join(dirpath,filenm)
-                        if not self._is_tempfile(filepath):
-                            if not self._is_oldfile(filepath):
-                                yield filepath
+                for nm in names:
+                    try:
+                        fpath = os.path.join(dirpath,nm)
+                    except UnicodeDecodeError:
+                        with util.cd(dirpath):
+                            if os.path.isdir(nm):
+                                shutil.rmtree(nm)
+                            else:
+                                os.unlink(nm)
+                    else:
+                        if not self._is_tempfile(fpath):
+                            if os.path.isdir(fpath):
+                                todo.append(fpath)
+                            else:
+                                if not self._is_oldfile(fpath):
+                                    yield fpath
 
     def record_files(self,recipe,files):
         assert files, "recipe '%s' didn't install any files" % (recipe,)

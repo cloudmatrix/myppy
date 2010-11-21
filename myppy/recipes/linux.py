@@ -32,7 +32,7 @@ class Recipe(base.Recipe):
     @property
     def CXXFLAGS(self):
         incdir = os.path.join(self.target.PREFIX,"include")
-        return "-I%s -static-libgcc" % (incdir,)
+        return "-D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
 
     @property
     def LD_LIBRARY_PATH(self):
@@ -96,6 +96,24 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         env.setdefault("PKG_CONFIG_PATH",self.PKG_CONFIG_PATH)
         super(CMakeRecipe,self)._generic_cmake(relpath,args,env)
 
+
+class cmake(base.cmake,Recipe):
+    def _patch(self):
+        super(cmake,self)._patch()
+        def stub_out_device_functions(lines):
+            for ln in lines:
+                if ln.startswith("archive_entry_dev") or ln.startswith("archive_entry_rdev"):
+                    yield ln
+                    ln = lines.next()
+                    assert ln.strip() == "{"
+                    yield ln
+                    while ln.strip() != "}":
+                        ln = lines.next()
+                    yield "    return 0;"
+                    yield ln
+                else:
+                    yield ln
+        self._patch_build_file("Utilities/cmlibarchive/libarchive/archive_entry.c",stub_out_device_functions)
 
 class apbuild_base(Recipe):
     SOURCE_URL = "http://autopackage.googlecode.com/files/autopackage-1.4.2-x86.tar.bz2"
@@ -238,6 +256,10 @@ class lib_gtk(Recipe):
                    yield ln
         workdir = self._get_builddir()
         for fnm in self.target.bt("find",workdir,"-name","Makefile").split():
+            self._patch_file(fnm,undisable_deprecated)
+        for fnm in self.target.bt("find",workdir,"-name","Makefile.am").split():
+            self._patch_file(fnm,undisable_deprecated)
+        for fnm in self.target.bt("find",workdir,"-name","Makefile.in").split():
             self._patch_file(fnm,undisable_deprecated)
 
 
