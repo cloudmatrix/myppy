@@ -463,25 +463,27 @@ class py_myppy(Recipe):
 
 
 class lib_wxwidgets_base(Recipe):
-    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2?use_mirror=internode"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2"
     CONFIGURE_ARGS = ("--with-opengl","--enable-unicode","--enable-optimize","--enable-debug_flag",)
 
 
 class lib_wxwidgets_gizmos(lib_wxwidgets_base):
     DEPENDENCIES = ["lib_wxwidgets_base"]
-    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2?use_mirror=internode"
-    CONFIGURE_DIR = "contrib/src/gizmos"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2"
+    MAKE_RELPATH = "contrib/src/gizmos"
 
 
 class lib_wxwidgets_stc(lib_wxwidgets_base):
     DEPENDENCIES = ["lib_wxwidgets_base"]
-    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2?use_mirror=internode"
-    CONFIGURE_DIR = "contrib/src/stc"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2"
+    MAKE_RELPATH = "contrib/src/stc"
     
 
 class lib_wxwidgets(Recipe):
     DEPENDENCIES = ["lib_wxwidgets_base","lib_wxwidgets_gizmos",
                     "lib_wxwidgets_stc"]
+    def fetch(self):
+        pass
     def build(self):
         pass
     def install(self):
@@ -502,9 +504,9 @@ class lib_qt4(Recipe):
 
 class py_wxpython(PyRecipe):
     DEPENDENCIES = ["lib_wxwidgets"]
-    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2?use_mirror=internode"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2"
     def install(self):
-        self._generic_pyinstall(src,relpath="wxPython")
+        self._generic_pyinstall(relpath="wxPython")
 
 
 class lib_apiextractor(CMakeRecipe):

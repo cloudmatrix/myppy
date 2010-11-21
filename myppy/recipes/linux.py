@@ -257,6 +257,10 @@ class lib_gtk(Recipe):
         workdir = self._get_builddir()
         for fnm in self.target.bt("find",workdir,"-name","Makefile").split():
             self._patch_file(fnm,undisable_deprecated)
+        for fnm in self.target.bt("find",workdir,"-name","Makefile.am").split():
+            self._patch_file(fnm,undisable_deprecated)
+        for fnm in self.target.bt("find",workdir,"-name","Makefile.in").split():
+            self._patch_file(fnm,undisable_deprecated)
 
 
 class lib_qt4(base.lib_qt4,Recipe):
