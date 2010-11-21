@@ -261,6 +261,8 @@ class MyppyEnv(object):
         cachefile = os.path.join(cachedir,nm)
         if md5 is not None and os.path.exists(cachefile):
             if md5 != util.md5file(cachefile):
+                print "BAD MD5 FOR", cachefile
+                print md5, util.md5file(cachefile)
                 os.unlink(cachefile)
         if not os.path.exists(cachefile):
             print "DOWNLOADING", url

@@ -489,8 +489,10 @@ class lib_qt4(Recipe):
     DEPENDENCIES = ["lib_jpeg","lib_png","lib_tiff","lib_zlib"]
     SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
     SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
-    CONFIGURE_ARGS = ("-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-libmng","-shared","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs",)
     CONFIGURE_VARS = None
+    @property
+    def CONFIGURE_ARGS(self):
+        return ("-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-libmng","-shared","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs","-I",os.path.join(self.target.PREFIX,"include"),"-L",os.path.join(self.target.PREFIX,"lib"))
     def _configure(self):
         # automatically accept the LGPL
         with chstdin("yes"):

@@ -73,6 +73,8 @@ class Recipe(base.Recipe):
     def _generic_configure(self,script=None,vars=None,args=None,env={}):
         if vars is None and self.CONFIGURE_VARS is None:
             env = env.copy()
+            env.setdefault("CC",self.CC)
+            env.setdefault("CXX",self.CXX)
             env.setdefault("LDFLAGS",self.LDFLAGS)
             env.setdefault("CFLAGS",self.CFLAGS)
             env.setdefault("CXXFLAGS",self.CXXFLAGS)
@@ -229,11 +231,10 @@ class NWayRecipe(Recipe):
 
 
 class CMakeRecipe(base.CMakeRecipe,Recipe):
-    def _generic_cmake(self,src,relpath=".",args=[],env={}):
+    def _generic_cmake(self,relpath=".",args=[],env={}):
         """Do a generic "cmake" on the given source tarball."""
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        load_recipe("cmake",self.target).install()
-        workdir = self._get_builddir(src)
+        workdir = self._get_builddir()
         cmd = ["cmake"]
         cmd.append("-DCMAKE_INSTALL_PREFIX=%s" % (self.target.PREFIX,))
         cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
@@ -266,8 +267,9 @@ class python27(base.python27,Recipe):
         #  We install *everything* under the Python.framework directory, which
         #  makes python install symlinks that point to themselves.  Use a fake
         #  prefix to avoid this, then just delete it later.
+        fwdir = os.path.join(self.target.rootdir,"Contents","Frameworks")
         return ["--enable-universalsdk",
-                "--enable-framework="+self.target.rootdir,
+                "--enable-framework="+fwdir,
                 "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
 
     def _patch(self):
@@ -323,7 +325,7 @@ class lib_wxwidgets_stc(base.lib_wxwidgets_stc,NWayRecipe):
 class py_wxpython(base.py_wxpython,Recipe):
     def install(self):
         wxconfig = os.path.join(self.target.PREFIX,"bin","wx-config")
-        self._generic_pyinstall(src,relpath="wxPython",args=["WX_CONFIG="+wxconfig])
+        self._generic_pyinstall(relpath="wxPython",args=["WX_CONFIG="+wxconfig])
 
 
 class lib_jpeg(base.lib_jpeg,NWayRecipe):
@@ -346,14 +348,36 @@ class lib_bz2(base.lib_bz2,NWayRecipe):
 
 class lib_qt4(base.lib_qt4,Recipe):
     DEPENDENCIES = ["lib_icu"]
-    CONFIGURE_ARGS = ["-no-framework","-universal"]
-    CONFIGURE_ARGS.extend(base.lib_qt4.CONFIGURE_ARGS)
-    CONFIGURE_VARS = None
+    @property
+    def CONFIGURE_ARGS(self):
+        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        args.extend(["-no-framework","-universal","-sdk",self.ISYSROOT,"-v",
+                     "-platform","macx-g++40","-carbon"])
+        return args
+    def _patch(self):
+        super(lib_qt4,self)._patch()
+        return
+        #  The 10.4u SDK is missing some newer power-related APIs.
+        def dont_use_cocoa_iokit(lines):
+            for ln in lines:
+                if ln.strip().endswith("QT_MAC_USE_COCOA"):
+                    yield ln.strip() + "_NO_NOT_REALLY\n"
+                else:
+                    yield ln
+        self._patch_build_file("src/testlib/qtestcase.cpp",dont_use_cocoa_iokit)
+        #  The 10.4u SDK has a different name for the objc runtime header.
+        def use_different_runtime_header(lines):
+            for ln in lines:
+                if "<objc/runtime.h>" in ln:
+                    yield ln.replace("<objc/runtime.h>","<objc/objc-runtime.h>")
+                else:
+                    yield ln
+        self._patch_build_file("src/gui/kernel/qt_mac_p.h",use_different_runtime_header)
     def install(self):
         super(lib_qt4,self).install()
         workdir = self._get_builddir()
         menunib_in = os.path.join(workdir,"src/gui/mac/qt_menu.nib")
-        menunib_out = os.path.join(self.target.rootdir,"Python.framework","Resources","Python.app","Contents","Resources","qt_menu.nib")
+        menunib_out = os.path.join(self.target.rootdir,"Contents","Resources","qt_menu.nib")
         shutil.copytree(menunib_in,menunib_out)
 
 

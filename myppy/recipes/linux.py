@@ -242,8 +242,11 @@ class lib_gtk(Recipe):
 
 
 class lib_qt4(base.lib_qt4,Recipe):
-    CONFIGURE_ARGS = ["-no-feature-inotify","-no-glib",]
-    CONFIGURE_ARGS.extend(base.lib_qt4.CONFIGURE_ARGS)
+    @property
+    def CONFIGURE_ARGS(self):
+        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        args.extend(["-no-feature-inotify","-no-glib",])
+        return args
     def _patch(self):
         def dont_use_pipe2(lines):
             for ln in lines:
