@@ -46,18 +46,8 @@ class MyppyEnv(base.MyppyEnv):
         os.symlink("Frameworks/Python.framework/Resources/Python.app/Contents/Resources",os.path.join(self.rootdir,"Contents","Resources"))
 
     def load_recipe(self,recipe):
-        try:
-            r = getattr(_macosx_recipes,recipe)
-        except AttributeError:
-            rbase = super(MyppyEnv,self).load_recipe(recipe).__class__
-            rsuprnm = rbase.__bases__[0].__name__
-            rsupr = self.load_recipe(rsuprnm).__class__
-            class r(rbase,rsupr):
-                pass
-            r.__name__ = rbase.__name__
-            r.__module__ = _macosx_recipes.__name__
-            setattr(_macosx_recipes,recipe,r)
-        return r(self)
+        return self.load_recipe_subclass(recipe,MyppyEnv,_macosx_recipes)
+
 
     def record_files(self,recipe,files):
         #  Fix up linker paths for portability.

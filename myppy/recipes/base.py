@@ -102,7 +102,10 @@ class Recipe(object):
             vars = self.CONFIGURE_VARS
         if args is None:
             args = self.CONFIGURE_ARGS
-        cmd = [script]
+        if isinstance(script,basestring):
+            cmd = [script]
+        else:
+            cmd = list(script)
         cmd.append("--prefix=%s" % (self.target.PREFIX,))
         for arg in args:
             cmd.append(arg)
@@ -218,7 +221,7 @@ class cmake(Recipe):
 
 
 class python27(Recipe):
-    DEPENDENCIES = ["lib_bz2","lib_zlib","lib_readline","lib_sqlite3"]
+    DEPENDENCIES = ["lib_zlib","lib_readline","lib_sqlite3","lib_bz2"]
     SOURCE_URL = "http://www.python.org/ftp/python/2.7/Python-2.7.tgz"
     SOURCE_MD5 = "35f56b092ecf39a6bd59d64f142aae0f"
     CONFIGURE_ARGS = ("--enable-shared",)
@@ -341,8 +344,8 @@ static int find_endof_central_dir(FILE* fp,char *eocd_out,long *header_pos) {
 
 
 class lib_bz2(Recipe):
-    SOURCE_URL = "http://www.bzip.org/1.0.5/bzip2-1.0.5.tar.gz"
-    SOURCE_MD5 = "3c15a0c8d1d3ee1c46a1634d00617b1a"
+    SOURCE_URL = "http://www.bzip.org/1.0.6/bzip2-1.0.6.tar.gz"
+    SOURCE_MD5 = "00b516f4704d4a7cb50a1d97e6e8e15b"
     @property
     def MAKE_VARS(self):
         return ("PREFIX=" + self.target.PREFIX,)
@@ -525,14 +528,16 @@ class lib_generatorrunner(CMakeRecipe):
 
 class lib_shiboken(PyCMakeRecipe):
     DEPENDENCIES = ["lib_apiextractor","lib_generatorrunner"]
-    SOURCE_URL = "http://www.pyside.org/files/shiboken-0.5.1.tar.bz2"
-    SOURCE_MD5 = "57e57ce6397c0047d08cf485b11b6011"
+    #SOURCE_URL = "http://www.pyside.org/files/shiboken-0.5.1.tar.bz2"
+    #SOURCE_MD5 = "57e57ce6397c0047d08cf485b11b6011"
+    SOURCE_URL = "file:///storage/software/shiboken-trunk.tar.gz"
 
 
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken",]
-    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.6+0.4.2.tar.bz2"
-    SOURCE_MD5 = "0fceafa202d3b52ba00fd369b77e86ce"
+    #SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.6+0.4.2.tar.bz2"
+    #SOURCE_MD5 = "0fceafa202d3b52ba00fd369b77e86ce"
+    SOURCE_URL = "file:///storage/software/pyside-trunk.tar.gz"
 
 
 class py_pyside_tools(CMakeRecipe):
