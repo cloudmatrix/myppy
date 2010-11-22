@@ -132,4 +132,28 @@ def prune_dir(path):
             raise
 
 
+def relpath_from(src,dst):
+    """Calculate relative path from one path to another.
+
+        >>> relpath_from("hello/world","hello/there/sport")
+        "../there/sport
+
+    """
+    src = os.path.abspath(src).split(os.sep)
+    dst = os.path.abspath(dst).split(os.sep)
+    assert src[0] == dst[0]
+    backrefs = []; fwdrefs = []
+    while src != dst:
+        if len(src) > len(dst):
+            src.pop()
+            backrefs.append("..")
+        else:
+            fwdrefs.append(dst.pop())
+    if not backrefs:
+        relpath = "."
+    else:
+        relpath = os.path.join(*backrefs)
+    relpath = os.path.join(relpath,*reversed(fwdrefs))
+    return relpath
+
 
