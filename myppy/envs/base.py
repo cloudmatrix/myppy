@@ -110,10 +110,13 @@ class MyppyEnv(object):
         
     def clean(self):
         """Clean out temporary built files and the like."""
-        if os.path.exists(self.cachedir):
+        if os.path.exists(self.builddir):
             shutil.rmtree(self.builddir)
         if os.path.exists(self.cachedir):
             shutil.rmtree(self.cachedir)
+        for fpath in self.find_new_files():
+            if os.path.isfile(fpath):
+                os.unlink(fpath)
 
     def do(self,*cmdline,**kwds):
         """Execute the given command within this myppy environment."""
@@ -202,6 +205,20 @@ class MyppyEnv(object):
                 
     def load_recipe(self,recipe):
         return getattr(_base_recipes,recipe)(self)
+
+    def _load_recipe_subclass(self,recipe,MyppyEnv,submod):
+        try:
+            r = getattr(submod,recipe)
+        except AttributeError:
+            rbase = super(MyppyEnv,self).load_recipe(recipe).__class__
+            rsuprnm = rbase.__bases__[0].__name__
+            rsupr = self.load_recipe(rsuprnm).__class__
+            class r(rbase,rsupr):
+                pass
+            r.__name__ = rbase.__name__
+            r.__module__ = submod.__name__
+            setattr(submod,recipe,r)
+        return r(self)
 
     def _is_tempfile(self,path):
         for excl in (self.builddir,self.cachedir,):

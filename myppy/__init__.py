@@ -114,6 +114,8 @@ if sys.platform == "darwin":
     from myppy.envs.macosx import MyppyEnv
 elif sys.platform == "linux2":
     from myppy.envs.linux import MyppyEnv
+elif sys.platform == "win32":
+    from myppy.envs.win32 import MyppyEnv
 else:
     raise ImportError("myppy not available on platform %r" % (sys.platform,))
 

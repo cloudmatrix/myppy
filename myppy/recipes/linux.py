@@ -284,6 +284,88 @@ class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
     CONFIGURE_ARGS.extend(base.lib_wxwidgets_base.CONFIGURE_ARGS)
 
 
+class lib_sparsehash(Recipe):
+    """Google sparehash, using old hash function APIs.
+
+    This installs a private copy of the google sparsehash library, tricked into
+    sucking in old definitions for hash_fun.h rather than the ones provided by
+    tr1.  Other libraries can then avoid sucking in the tr1 symbols.
+    """
+    SOURCE_URL = "http://google-sparsehash.googlecode.com/files/sparsehash-1.9.tar.gz"
+    def _patch(self):
+        super(lib_sparsehash,self)._patch()
+        def dont_use_tr1(lines):
+            for ln in lines:
+                yield ln.replace("tr1/","tr1_DONT_USE_ME/")
+        self._patch_build_file("configure",dont_use_tr1)
+        def include_typeinfo(lines):
+            ln = lines.next()
+            while not ln.startswith("#include"):
+                yield ln
+                ln = lines.next()
+            yield "#include <typeinfo>\n"
+            yield ln
+            for ln in lines:
+                yield ln
+        self._patch_build_file("src/hashtable_test.cc",include_typeinfo)
+
+
+class lib_shiboken(base.lib_shiboken,CMakeRecipe):
+    #  Use a private build of google sparsehash, so we don't pull
+    #  in symbols from C++ TR1 hashtable spec.
+    DEPENDENCIES = ["lib_sparsehash"]
+    @property
+    def CXXFLAGS(self):
+        flags = super(lib_shiboken,self).CXXFLAGS
+        flags += " -I" + os.path.join(self.target.PREFIX,"include")
+        return flags
+    def _patch(self):
+        super(lib_shiboken,self)._patch()
+        #  Provide hash function implementations that would be automatically
+        #  provided by tr1, but are missing in the backwards-compat code.
+        def provide_hash_funcs(lines):
+            for ln in lines:
+                if "namespace Shiboken" in ln:
+                    break
+                yield ln
+            yield dedent("""
+                      #include <hash_fun.h>
+                      namespace __gnu_cxx {
+                      template<>
+                      struct hash<void *> {
+                          size_t operator()(const void * __x) const {
+                              return reinterpret_cast<size_t>(__x); }
+                          };
+                      template<>
+                      struct hash<const void *> {
+                          size_t operator()(const void * __x) const {
+                              return reinterpret_cast<size_t>(__x); }
+                          };
+                      template<>
+                      struct hash<SbkBaseType *> {
+                          size_t operator()(const SbkBaseType * __x) const {
+                              return reinterpret_cast<size_t>(__x); }
+                          };
+                      template<>
+                      struct hash<std::basic_string<char, std::char_traits<char>, std::allocator<char> > > {
+                          size_t operator()(std::basic_string<char, std::char_traits<char>, std::allocator<char> > __x) const {
+                              //  copied from the hash func for char*
+                              unsigned long __h = 0;
+                              for(unsigned long i=0;i<__x.size();i++) {
+                                  __h = 5 * __h + __x[i];
+                              }
+                              return size_t(__h);
+                              }
+                          };
+                      }
+
+                  """)
+            yield ln
+            for ln in lines:
+                yield ln
+        self._patch_build_file("libshiboken/bindingmanager.cpp",provide_hash_funcs)
+        self._patch_build_file("libshiboken/typeresolver.cpp",provide_hash_funcs)
+
 
 class py_myppy(base.py_myppy,Recipe):
     def install(self):
