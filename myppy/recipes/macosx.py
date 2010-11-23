@@ -62,6 +62,7 @@ class Recipe(base.Recipe):
                 "LDFLAGS="+self.LDFLAGS,
                 "CFLAGS="+self.CFLAGS,
                 "CXXFLAGS="+self.CXXFLAGS,]
+
     @property
     def MAKE_VARS(self):
         return ["CFLAGS="+self.CFLAGS]
@@ -73,6 +74,8 @@ class Recipe(base.Recipe):
     def _generic_configure(self,script=None,vars=None,args=None,env={}):
         if vars is None and self.CONFIGURE_VARS is None:
             env = env.copy()
+            env.setdefault("CC",self.CC)
+            env.setdefault("CXX",self.CXX)
             env.setdefault("LDFLAGS",self.LDFLAGS)
             env.setdefault("CFLAGS",self.CFLAGS)
             env.setdefault("CXXFLAGS",self.CXXFLAGS)
@@ -117,6 +120,9 @@ class Recipe(base.Recipe):
 
         This is always <PREFIX>/tmp/build/<tarballname>/<srcdirname>/
         """
+        #  For n-way builds there will be more than one directory in the
+        #  root build dir.  All but one will be named after an arch, so
+        #  that must be the one we're looking for.
         src = self.SOURCE_URL
         workdir = os.path.join(self.target.builddir,os.path.basename(src))
         for nm in os.listdir(workdir):
@@ -129,6 +135,12 @@ class Recipe(base.Recipe):
 
 
 class NWayRecipe(Recipe):
+    """Build arch-specific versions independently, then merge them together.
+
+    This recipe can be used for libs that don't like being build with multiple
+    -arch flags.  It compiles each arch independently and then merges them
+    together into a single set of files.
+    """
 
     @property
     def CC(self):
@@ -233,14 +245,15 @@ class NWayRecipe(Recipe):
 
 
 class CMakeRecipe(base.CMakeRecipe,Recipe):
-    def _generic_cmake(self,src,relpath=".",args=[],env={}):
+    def _generic_cmake(self,relpath=".",args=[],env={}):
         """Do a generic "cmake" on the given source tarball."""
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        load_recipe("cmake",self.target).install()
-        workdir = self._get_builddir(src)
+        workdir = self._get_builddir()
         cmd = ["cmake"]
         cmd.append("-DCMAKE_INSTALL_PREFIX=%s" % (self.target.PREFIX,))
         cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
+        cmd.append("-DCMAKE_OSX_SYSROOT="+self.ISYSROOT)
+        cmd.append("-DCMAKE_OSX_ARCHITECTURES="+";".join(self.TARGET_ARCHS))
         for arg in args:
             cmd.append(arg)
         libdir = os.path.join(self.target.PREFIX,"lib")
@@ -270,12 +283,15 @@ class python27(base.python27,Recipe):
         #  We install *everything* under the Python.framework directory, which
         #  makes python install symlinks that point to themselves.  Use a fake
         #  prefix to avoid this, then just delete it later.
+        fwdir = os.path.join(self.target.rootdir,"Contents","Frameworks")
         return ["--enable-universalsdk",
-                "--enable-framework="+self.target.rootdir,
+                "--enable-framework="+fwdir,
                 "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
 
     def _patch(self):
         super(python27,self)._patch()
+        #  The standard config scripts can't handle repeated -arch flags in
+        #  CFLAGS.  Patch them to ignore the duplicates.
         def handle_duplicate_arch_names(lines):
             for ln in lines:
                 if ln.strip() == "archs.sort()":
@@ -300,6 +316,9 @@ class lib_sqlite3(base.lib_sqlite3,NWayRecipe):
 
 class lib_wxwidgets_base(base.lib_wxwidgets_base,NWayRecipe):
     def _patch(self):
+        #  Some typecasts don't seem to work quite right with the 10.4u SDK.
+        #  Specifically, selecting between int and size_t.
+        #  Add some explicit casts that should make it work OK.
         def add_explicit_casts(lines):
             for ln in lines:
                 ln = re.sub(r"\[(\d+)u\]",r"[(size_t)\1u]",ln)
@@ -316,7 +335,7 @@ class lib_wxwidgets_base(base.lib_wxwidgets_base,NWayRecipe):
                 self.patch_build_file(filepath,add_explicit_casts)
 
 
-class lib_wxwidgets_gizmos(base.lib_wxwidgets_base,NWayRecipe):
+class lib_wxwidgets_gizmos(base.lib_wxwidgets_gizmos,NWayRecipe):
     pass
 
 
@@ -327,7 +346,7 @@ class lib_wxwidgets_stc(base.lib_wxwidgets_stc,NWayRecipe):
 class py_wxpython(base.py_wxpython,Recipe):
     def install(self):
         wxconfig = os.path.join(self.target.PREFIX,"bin","wx-config")
-        self._generic_pyinstall(src,relpath="wxPython",args=["WX_CONFIG="+wxconfig])
+        self._generic_pyinstall(relpath="wxPython",args=["WX_CONFIG="+wxconfig])
 
 
 class lib_jpeg(base.lib_jpeg,NWayRecipe):
@@ -348,21 +367,28 @@ class lib_zlib(base.lib_zlib,NWayRecipe):
 class lib_bz2(base.lib_bz2,NWayRecipe):
     pass
 
+
 class lib_qt4(base.lib_qt4,Recipe):
     DEPENDENCIES = ["lib_icu"]
-    CONFIGURE_ARGS = ["-no-framework","-universal"]
-    CONFIGURE_ARGS.extend(base.lib_qt4.CONFIGURE_ARGS)
-    CONFIGURE_VARS = None
+    @property
+    def CONFIGURE_ARGS(self):
+        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        #  Must build carbon when targeting 10.4
+        args.extend(["-no-framework","-universal","-sdk",self.ISYSROOT,"-v",
+                     "-platform","macx-g++40","-carbon"])
+        return args
     def install(self):
         super(lib_qt4,self).install()
+        #  Copy the menu.nib bundle into the app resource directory.
+        #  Otherwise Qt can't find it and complains.
         workdir = self._get_builddir()
         menunib_in = os.path.join(workdir,"src/gui/mac/qt_menu.nib")
-        menunib_out = os.path.join(self.target.rootdir,"Python.framework","Resources","Python.app","Contents","Resources","qt_menu.nib")
+        menunib_out = os.path.join(self.target.rootdir,"Contents","Resources","qt_menu.nib")
         shutil.copytree(menunib_in,menunib_out)
 
 
-# TODO: hardcode charset to utf8 for extra performance
 class lib_icu(Recipe):
+    # TODO: hardcode charset to utf8 for extra performance
     SOURCE_URL = "http://download.icu-project.org/files/icu4c/4.4.2/icu4c-4_4_2-src.tgz"
     CONFIGURE_SCRIPT = "./source/configure"
 
@@ -372,17 +398,5 @@ class lib_xml2(base.lib_xml2,NWayRecipe):
 
 class lib_xslt(base.lib_xslt,NWayRecipe):
     pass
-
-
-#        for nm in os.listdir(os.path.join(spdir,"PySide")):
-#            if nm.endswith(".so"):
-#                sopath = os.path.join(spdir,"PySide",nm)
-#                self.target.do("install_name_tool","-change","libshiboken.0.5.dylib",os.path.join(self.target.PREFIX,"lib","libshiboken.0.5.dylib"),sopath)
-#                self.target.do("install_name_tool","-change","libpyside.0.4.dylib",os.path.join(self.target.PREFIX,"lib","libpyside.0.4.dylib"),sopath)
-#        for nm in os.listdir(os.path.join(self.target.PREFIX,"lib")):
-#            if nm.endswith(".dylib"):
-#                sopath = os.path.join(self.target.PREFIX,"lib",nm)
-#                self.target.do("install_name_tool","-change","libshiboken.0.5.dylib",os.path.join(self.target.PREFIX,"lib","libshiboken.0.5.dylib"),sopath)
-#                self.target.do("install_name_tool","-change","libpyside.0.4.dylib",os.path.join(self.target.PREFIX,"lib","libpyside.0.4.dylib"),sopath)
 
 

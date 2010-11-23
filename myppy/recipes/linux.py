@@ -271,8 +271,11 @@ class lib_qt4(base.lib_qt4,Recipe):
     #  Build against an older version of fontconfig, so it doesn't suck
     #  in symbols that aren't available on older linuxen.
     DEPENDENCIES = ["lib_fontconfig"]
-    CONFIGURE_ARGS = ["-no-feature-inotify","-no-glib",]
-    CONFIGURE_ARGS.extend(base.lib_qt4.CONFIGURE_ARGS)
+    @property
+    def CONFIGURE_ARGS(self):
+        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        args.extend(["-no-feature-inotify","-no-glib",])
+        return args
     def _patch(self):
         #  Disable some functions only available on newer linuxes.
         #  Fortunately qt provides runtime fallbacks for these.
