@@ -61,16 +61,18 @@ class Recipe(base.Recipe):
 
     def _generic_make(self,vars=None,relpath=None,env={}):
         """Do a generic "make" for this recipe."""
+        env = env.copy()
+        env.setdefault("LD_LIBRARY_PATH",self.LD_LIBRARY_PATH)
         workdir = self._get_builddir()
         if vars is None:
             vars = self.MAKE_VARS
         if relpath is None:
             relpath = self.MAKE_RELPATH
-        cmd = ["make","CC=apgcc","CXX=apg++"]
-        cmd.extend(vars)
+        cmd = ["make",]
+        if vars is not None:
+            cmd.extend(["CC=apgcc","CXX=apg++"])
+            cmd.extend(vars)
         cmd.extend(("-C",os.path.join(workdir,relpath)))
-        env = env.copy()
-        env.setdefault("LD_LIBRARY_PATH",self.LD_LIBRARY_PATH)
         self.target.do(*cmd,env=env)
 
     def _generic_makeinstall(self,vars=None,relpath=None,env={}):
@@ -80,8 +82,10 @@ class Recipe(base.Recipe):
             vars = self.MAKE_VARS
         if relpath is None:
             relpath = self.MAKE_RELPATH
-        cmd = ["make","CC=apgcc","CXX=apg++"]
-        cmd.extend(vars)
+        cmd = ["make"]
+        if vars is not None:
+            cmd.extend(["CC=apgcc","CXX=apg++"])
+            cmd.extend(vars)
         cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
         self.target.do(*cmd,env=env)
 
@@ -264,16 +268,26 @@ class lib_gtk(Recipe):
 
 
 class lib_qt4(base.lib_qt4,Recipe):
+    #  Build against an older version of fontconfig, so it doesn't suck
+    #  in symbols that aren't available on older linuxen.
+    DEPENDENCIES = ["lib_fontconfig"]
     CONFIGURE_ARGS = ["-no-feature-inotify","-no-glib",]
     CONFIGURE_ARGS.extend(base.lib_qt4.CONFIGURE_ARGS)
     def _patch(self):
-        def dont_use_pipe2(lines):
+        #  Disable some functions only available on newer linuxes.
+        #  Fortunately qt provides runtime fallbacks for these.
+        def dont_use_newer_funcs(lines):
             for ln in lines:
                 if "pipe2" in ln:
                     yield ln.replace("pipe2","disabled_pipe2")
+                elif "dup3" in ln:
+                    yield ln.replace("dup3","disabled_dup3")
+                elif "accept4" in ln:
+                    yield ln.replace("accept4","disabled_accept4")
                 else:
                     yield ln
-        self._patch_build_file("src/corelib/kernel/qcore_unix_p.h",dont_use_pipe2)
+        self._patch_build_file("src/corelib/kernel/qcore_unix_p.h",dont_use_newer_funcs)
+        self._patch_build_file("src/network/socket/qnet_unix_p.h",dont_use_newer_funcs)
 
 
 class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
@@ -423,5 +437,35 @@ class py_myppy(base.py_myppy,Recipe):
             hash -r
         fi
     """)
+
+
+
+class lib_freetype(Recipe):
+    #  This is intentionally an old version.  We don't dsitribute it,
+    #  but it's API compatible back to some old Linux distros.
+    CONFIGURE_VARS = None
+    MAKE_VARS = None
+    LDFLAGS = ""
+    CFLAGS = ""
+    SOURCE_URL = "http://download.savannah.gnu.org/releases/freetype/freetype-2.1.10.tar.gz"
+
+
+class lib_fontconfig(Recipe):
+    #  This is intentionally an old version.  We don't dsitribute it,
+    #  but it's API compatible back to some old Linux distros.
+    DEPENDENCIES = ["lib_freetype"]
+    SOURCE_URL = "http://fontconfig.org/release/fontconfig-2.4.1.tar.gz"
+
+
+class lib_pango(Recipe):
+    DEPENDENCIES = ["lib_fontconfig"]
+    SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/pango/1.12/pango-1.12.0.tar.bz2"
+
+class lib_glib(Recipe):
+    SOURCE_URL = "http://ftp.gnome.org/pub/gnome/sources/glib/2.10/glib-2.10.0.tar.bz2"
+
+
+class lib_atk(Recipe):
+    SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/atk/1.11/atk-1.11.4.tar.bz2"
 
 

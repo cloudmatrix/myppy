@@ -1,0 +1,3 @@
+
+ * concept of "build deps" that are installed for building, but removed
+   on cleanup.  Make fontconfig and freetype builddeps for wx and qt.

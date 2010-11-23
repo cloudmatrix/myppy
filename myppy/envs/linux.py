@@ -35,6 +35,7 @@ class MyppyEnv(base.MyppyEnv):
         super(MyppyEnv,self).record_files(recipe,files)
 
     def _check_glibc_symbols(self,fpath):
+        print "VERIFYING GLIBC SYMBOLS", fpath
         for ln in self.bt("objdump","-T",fpath).split("\n"):
             for field in ln.split():
                 if field.startswith("GLIBC_"):
@@ -55,6 +56,7 @@ class MyppyEnv(base.MyppyEnv):
     def _adjust_rpath(self,fpath):
         #  patchelf might not be installed if we're just initialising the env.
         if os.path.exists(os.path.join(self.PREFIX,"bin","patchelf")):
+            print "ADJUSTING RPATH", fpath
             backrefs = []
             froot = os.path.dirname(fpath)
             while froot != self.PREFIX:

@@ -85,8 +85,10 @@ class Recipe(base.Recipe):
             vars = self.MAKE_VARS
         if relpath is None:
             relpath = self.MAKE_RELPATH
-        cmd = ["make","CC="+self.CC,"CXX="+self.CXX]
-        cmd.extend(vars)
+        cmd = ["make"]
+        if vars is not None:
+            cmd.extend(["CC="+self.CC,"CXX="+self.CXX])
+            cmd.extend(vars)
         cmd.extend(("-C",os.path.join(workdir,relpath)))
         env = env.copy()
         env.setdefault("DYLD_FALLBACK_LIBRARY_PATH",self.DYLD_FALLBACK_LIBRARY_PATH)
@@ -100,8 +102,10 @@ class Recipe(base.Recipe):
             vars = self.MAKE_VARS
         if relpath is None:
             relpath = self.MAKE_RELPATH
-        cmd = ["make","CC="+self.CC,"CXX="+self.CXX]
-        cmd.extend(vars)
+        cmd = ["make"]
+        if vars is not None:
+            cmd.extend(["CC="+self.CC,"CXX="+self.CXX])
+            cmd.extend(vars)
         cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
         env = env.copy()
         env.setdefault("DYLD_FALLBACK_LIBRARY_PATH",self.DYLD_FALLBACK_LIBRARY_PATH)

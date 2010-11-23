@@ -125,7 +125,8 @@ class Recipe(object):
         if relpath is None:
             relpath = self.MAKE_RELPATH
         cmd = ["make"]
-        cmd.extend(vars)
+        if vars is not None:
+            cmd.extend(vars)
         cmd.extend(("-C",os.path.join(workdir,relpath)))
         self.target.do(*cmd,env=env)
 
@@ -137,7 +138,8 @@ class Recipe(object):
         if relpath is None:
             relpath = self.MAKE_RELPATH
         cmd = ["make"]
-        cmd.extend(vars)
+        if vars is not None:
+            cmd.extend(vars)
         cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
         self.target.do(*cmd,env=env)
 
@@ -415,24 +417,6 @@ class lib_openssl(Recipe):
 class lib_sqlite3(Recipe):
     SOURCE_URL = "http://www.sqlite.org/sqlite-amalgamation-3.6.23.1.tar.gz"
     SOURCE_MD5 = "ed585bb3d4e5c643843ebb1e318644ce"
-
-
-
-class lib_glib(Recipe):
-    SOURCE_URL = "http://ftp.gnome.org/pub/gnome/sources/glib/2.10/glib-2.10.0.tar.bz2"
-
-
-class lib_fontconfig(Recipe):
-    SOURCE_URL = "http://fontconfig.org/release/fontconfig-2.8.0.tar.gz"
-
-
-class lib_pango(Recipe):
-    DEPENDENCIES = ["lib_fontconfig"]
-    SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/pango/1.12/pango-1.12.0.tar.bz2"
-
-
-class lib_atk(Recipe):
-    SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/atk/1.11/atk-1.11.4.tar.bz2"
 
 
 class py_setuptools(PyRecipe):

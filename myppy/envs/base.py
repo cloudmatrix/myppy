@@ -190,6 +190,8 @@ class MyppyEnv(object):
             for file in files:
                 assert util.relpath(file) == file
                 filepath = os.path.join(self.rootdir,file)
+                if not os.path.exists(filepath):
+                    continue
                 if filepath.endswith(os.sep):
                     print "PRUNING", filepath
                     util.prune_dir(filepath)
