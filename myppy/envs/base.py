@@ -93,15 +93,15 @@ class MyppyEnv(object):
 
     @property
     def PYTHON_HEADERS(self):
-        return os.path.join(self.PREFIX,"include","python2.7")
+        return os.path.join(self.PREFIX,"include","python2.6")
 
     @property
     def PYTHON_LIBRARY(self):
-        return os.path.join(self.PREFIX,"lib","libpython2.7.so")
+        return os.path.join(self.PREFIX,"lib","libpython2.6.so")
 
     @property
     def SITE_PACKAGES(self):
-        return os.path.join(self.PREFIX,"lib","python2.7","site-packages")
+        return os.path.join(self.PREFIX,"lib","python2.6","site-packages")
 
     def init(self):
         """Build the base myppy python environment."""
@@ -115,7 +115,7 @@ class MyppyEnv(object):
         if os.path.exists(self.cachedir):
             shutil.rmtree(self.cachedir)
         for fpath in self.find_new_files():
-            if os.path.isfile(fpath):
+            if os.path.isfile(fpath) or os.path.islink(fpath):
                 os.unlink(fpath)
 
     def do(self,*cmdline,**kwds):
@@ -273,8 +273,6 @@ class MyppyEnv(object):
         for file in files:
             file = file[len(self.rootdir)+1:]
             assert util.relpath(file) == file
-            assert os.path.exists(os.path.join(self.rootdir,file)),\
-                   "file has gone missing: "+os.path.join(self.rootdir,file)
             self._db.execute("INSERT INTO installed_files VALUES (?,?)",
                              (recipe,file,))
 

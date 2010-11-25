@@ -35,7 +35,7 @@ command::
 
     #> myppy PATH/TO/ENV init
 
-This will build and set up a basic python installation (currently python 2.7.0)
+This will build and set up a basic python installation (currently python 2.6.6)
 along with setuptools and pip.  Most python packages can be installed directly
 using pip.  For packages with more complex needs a myppy "recipe" is provided,
 and you can install them using e.g.::

@@ -182,7 +182,7 @@ class Recipe(object):
 
 
 class PyRecipe(Recipe):
-    DEPENDENCIES = ["python27"]
+    DEPENDENCIES = ["python26"]
     def build(self):
         """Build all of the files for this recipe."""
         self._unpack()
@@ -207,7 +207,7 @@ class CMakeRecipe(Recipe):
 
 
 class PyCMakeRecipe(CMakeRecipe):
-    DEPENDENCIES = ["python27"]
+    DEPENDENCIES = ["python26"]
     def _configure(self):
         args = ("-DPYTHON_EXECUTABLE="+self.target.PYTHON_EXECUTABLE,
                 "-DPYTHON_INCLUDE_DIR="+self.target.PYTHON_HEADERS,
@@ -222,10 +222,9 @@ class cmake(Recipe):
     MAKE_VARS = ["VERBOSE=1"]
 
 
-class python27(Recipe):
+class python26(Recipe):
     DEPENDENCIES = ["lib_zlib","lib_readline","lib_sqlite3","lib_bz2"]
-    SOURCE_URL = "http://www.python.org/ftp/python/2.7/Python-2.7.tgz"
-    SOURCE_MD5 = "35f56b092ecf39a6bd59d64f142aae0f"
+    SOURCE_URL = "http://www.python.org/ftp/python/2.6.6/Python-2.6.6.tgz"
     CONFIGURE_ARGS = ("--enable-shared",)
     def _patch(self):
         #  Add some builtin modules:
@@ -248,7 +247,7 @@ class python27(Recipe):
                     yield ln
         self._patch_build_file("Modules/Setup.dist",add_builtin_modules)
     def _configure(self):
-        super(python27,self)._configure()
+        super(python26,self)._configure()
         #  Can't link epoll without symbols from a later libc.
         #  We'll have to settle for old-fashioned select().
         def remove_have_epoll(lines):

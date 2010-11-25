@@ -20,11 +20,11 @@ class MyppyEnv(base.MyppyEnv):
 
     @property
     def PREFIX(self):
-        return os.path.join(self.rootdir,"Contents","Frameworks","Python.framework","Versions","2.7")
+        return os.path.join(self.rootdir,"Contents","Frameworks","Python.framework","Versions","2.6")
 
     @property
     def PYTHON_LIBRARY(self):
-        return os.path.join(self.PREFIX,"lib","libpython2.7.dylib")
+        return os.path.join(self.PREFIX,"lib","libpython2.6.dylib")
 
     def __init__(self,rootdir):
         super(MyppyEnv,self).__init__(rootdir)
@@ -35,9 +35,9 @@ class MyppyEnv(base.MyppyEnv):
     def init(self):
         super(MyppyEnv,self).init()
         os.mkdir(os.path.join(self.rootdir,"Contents","MacOS"))
-        os.symlink("../Frameworks/Python.framework/Versions/2.7/bin/python",os.path.join(self.rootdir,"Contents","MacOS","python"))
-        os.symlink("Contents/Frameworks/Python.framework/Versions/2.7/bin/python",os.path.join(self.rootdir,"python"))
-        os.symlink("Contents/Frameworks/Python.framework/Versions/2.7/bin/pythonw",os.path.join(self.rootdir,"pythonw"))
+        os.symlink("../Frameworks/Python.framework/Versions/2.6/bin/python",os.path.join(self.rootdir,"Contents","MacOS","python"))
+        os.symlink("Contents/Frameworks/Python.framework/Versions/2.6/bin/python",os.path.join(self.rootdir,"python"))
+        os.symlink("Contents/Frameworks/Python.framework/Versions/2.6/bin/pythonw",os.path.join(self.rootdir,"pythonw"))
         with open(os.path.join(self.rootdir,"Contents","Info.plist"),"w") as f:
             with open(os.path.join(self.rootdir,"Contents","Frameworks","Python.framework","Resources","Python.app","Contents","Info.plist")) as fIn:
                 info = fIn.read()

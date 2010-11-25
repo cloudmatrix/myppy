@@ -162,11 +162,11 @@ class apbuild(Recipe):
 
     
 
-class python27(base.python27,Recipe,):
+class python26(base.python26,Recipe,):
     """Install the basic Python interpreter, with myppy support."""
     DEPENDENCIES = ["lib_openssl"]
     def _configure(self):
-        super(python27,self)._configure()
+        super(python26,self)._configure()
         #  Can't link epoll without symbols from a later libc.
         #  We'll have to settle for old-fashioned select().
         def remove_have_epoll(lines):
@@ -194,7 +194,7 @@ class lib_openssl(base.lib_openssl,Recipe):
 
 
 #class py_cxfreeze(Recipe):
-#    DEPENDENCIES = ["python27"]
+#    DEPENDENCIES = ["python26"]
 #    def _install(self):
 #        src = self.fetch("http://downloads.sourceforge.net/project/cx-freeze/4.2/cx_Freeze-4.2.tar.gz?use_mirror=internode")
 #        self.generic_unpack(src)
@@ -217,7 +217,7 @@ class lib_openssl(base.lib_openssl,Recipe):
 
 
 #class py_bbfreeze(Recipe):
-#    DEPENDENCIES = ["python27"]
+#    DEPENDENCIES = ["python26"]
 #    def _install(self):
 #        src = self.fetch("http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-0.96.5.tar.gz#md5=1e095cb403a91cc7ebf17a3c0906b03f")
 #        self.generic_unpack(src)
@@ -444,7 +444,7 @@ class py_myppy(base.py_myppy,Recipe):
 
 
 class lib_freetype(Recipe):
-    #  This is intentionally an old version.  We don't dsitribute it,
+    #  This is intentionally an old version.  We don't distribute it,
     #  but it's API compatible back to some old Linux distros.
     CONFIGURE_VARS = None
     MAKE_VARS = None

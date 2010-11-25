@@ -271,7 +271,7 @@ class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
     pass
 
 
-class python27(base.python27,Recipe):
+class python26(base.python26,Recipe):
     """Install the basic Python interpreter, with myppy support."""
 
     @property
@@ -289,7 +289,7 @@ class python27(base.python27,Recipe):
                 "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
 
     def _patch(self):
-        super(python27,self)._patch()
+        super(python26,self)._patch()
         #  The standard config scripts can't handle repeated -arch flags in
         #  CFLAGS.  Patch them to ignore the duplicates.
         def handle_duplicate_arch_names(lines):
@@ -304,7 +304,7 @@ class python27(base.python27,Recipe):
         self._patch_build_file("Lib/distutils/util.py",handle_duplicate_arch_names)
 
     def install(self):
-        super(python27,self).install()
+        super(python26,self).install()
         shutil.rmtree(os.path.join(self.target.rootdir,"fake-prefix"))
 
 
