@@ -39,7 +39,7 @@ class MyppyEnv(object):
 
     """
  
-    DEPENDENCIES = ["python27","py_pip","py_myppy"]
+    DEPENDENCIES = ["python26","py_pip","py_myppy"]
 
     DB_NAME = os.path.join("local","myppy.db")
 
