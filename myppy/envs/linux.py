@@ -30,8 +30,9 @@ class MyppyEnv(base.MyppyEnv):
             fnm = os.path.basename(fpath)
             if fpath == os.path.realpath(fpath):
                 if fnm.endswith(".so") or ".so." in fnm:
-                    self._check_glibc_symbols(fpath)
-                    self._adjust_rpath(fpath)
+                    if recipe not in ("apbuild_base","apbuild",):
+                        self._check_glibc_symbols(fpath)
+                        self._adjust_rpath(fpath)
         super(MyppyEnv,self).record_files(recipe,files)
 
     def _check_glibc_symbols(self,fpath):
