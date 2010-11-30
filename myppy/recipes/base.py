@@ -143,13 +143,13 @@ class Recipe(object):
         cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
         self.target.do(*cmd,env=env)
 
-    def _generic_pyinstall(self,relpath="",args=[]):
+    def _generic_pyinstall(self,relpath="",args=[],env={}):
         """Do a generic "python setup.py install" for this recipe."""
         workdir = self._get_builddir()
         cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install"]
         cmd.extend(args)
         with cd(os.path.join(workdir,relpath)):
-            self.target.do(*cmd)
+            self.target.do(*cmd,env=env)
 
     def _get_builddir(self):
         """Get the directory in which we build this recipe.

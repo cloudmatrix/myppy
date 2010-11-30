@@ -128,7 +128,14 @@ def prune_dir(path):
     try:
         os.rmdir(path)
     except EnvironmentError, e:
-        if e.errno != errno.ENOTEMPTY:
+        if e.errno == errno.ENOTEMPTY:
+            pass
+        elif e.errno == errno.ENOTDIR:
+            if os.path.islink(path) and not os.path.exists(path):
+                os.unlink(path)
+            else:
+                raise
+        else:
             raise
 
 

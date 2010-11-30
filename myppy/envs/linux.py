@@ -30,7 +30,7 @@ class MyppyEnv(base.MyppyEnv):
             fnm = os.path.basename(fpath)
             if fpath == os.path.realpath(fpath):
                 if fnm.endswith(".so") or ".so." in fnm:
-                    if recipe not in ("apbuild_base","apbuild",):
+                    if recipe not in ("apbuild_base","apbuild","lib_apiextractor",):
                         self._check_glibc_symbols(fpath)
                         self._adjust_rpath(fpath)
         super(MyppyEnv,self).record_files(recipe,files)
