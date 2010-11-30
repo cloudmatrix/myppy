@@ -300,8 +300,17 @@ class python26(base.python26,Recipe):
                     yield ln
                 else:
                     yield ln
-        self._patch_build_file("Lib/sysconfig.py",handle_duplicate_arch_names)
+        self._patch_build_file("Lib/distutils/sysconfig.py",handle_duplicate_arch_names)
         self._patch_build_file("Lib/distutils/util.py",handle_duplicate_arch_names)
+        def set_python_apps_dir(lines):
+            for ln in lines:
+                if ln.startswith("PYTHONAPPSDIR="):
+                    yield "PYTHONAPPSDIR=" + self.target.PREFIX + "\n"
+                else:
+                    yield ln
+        self._patch_build_file("Mac/Makefile.in",set_python_apps_dir)
+        self._patch_build_file("Mac/IDLE/Makefile.in",set_python_apps_dir)
+        self._patch_build_file("Mac/PythonLauncher/Makefile.in",set_python_apps_dir)
 
     def install(self):
         super(python26,self).install()

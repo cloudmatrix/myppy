@@ -46,8 +46,7 @@ class MyppyEnv(base.MyppyEnv):
         os.symlink("Frameworks/Python.framework/Resources/Python.app/Contents/Resources",os.path.join(self.rootdir,"Contents","Resources"))
 
     def load_recipe(self,recipe):
-        return self.load_recipe_subclass(recipe,MyppyEnv,_macosx_recipes)
-
+        return self._load_recipe_subclass(recipe,MyppyEnv,_macosx_recipes)
 
     def record_files(self,recipe,files):
         #  Fix up linker paths for portability.
