@@ -89,6 +89,15 @@ class Recipe(base.Recipe):
         cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
         self.target.do(*cmd,env=env)
 
+    def _generic_pyinstall(self,relpath="",args=[],env={}):
+        env = env.copy()
+        env.setdefault("LDFLAGS",self.LDFLAGS)
+        env.setdefault("CFLAGS",self.CFLAGS)
+        env.setdefault("CXXFLAGS",self.CXXFLAGS)
+        env.setdefault("LD_LIBRARY_PATH",self.LD_LIBRARY_PATH)
+        env.setdefault("PKG_CONFIG_PATH",self.PKG_CONFIG_PATH)
+        super(Recipe,self)._generic_pyinstall(relpath,args,env)
+
 
 class CMakeRecipe(base.CMakeRecipe,Recipe):
     def _generic_cmake(self,relpath=".",args=[],env={}):
@@ -99,6 +108,9 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         env.setdefault("LD_LIBRARY_PATH",self.LD_LIBRARY_PATH)
         env.setdefault("PKG_CONFIG_PATH",self.PKG_CONFIG_PATH)
         super(CMakeRecipe,self)._generic_cmake(relpath,args,env)
+
+class PyRecipe(base.PyRecipe,Recipe):
+    pass
 
 
 class cmake(base.cmake,Recipe):
@@ -193,55 +205,29 @@ class lib_openssl(base.lib_openssl,Recipe):
         self._patch_build_file("Makefile",ensure_gnu_source)
 
 
-#class py_cxfreeze(Recipe):
-#    DEPENDENCIES = ["python26"]
-#    def _install(self):
-#        src = self.fetch("http://downloads.sourceforge.net/project/cx-freeze/4.2/cx_Freeze-4.2.tar.gz?use_mirror=internode")
-#        self.generic_unpack(src)
-#        def add_removal_of_nonportable_libs(lines):
-#            for ln in lines:
-#                yield ln
-#                if ln.strip() == "def Freeze(self):":
-#                    break
-#            for ln in lines:
-#                if not ln.strip():
-#                    break
-#                yield ln
-#            yield 8*" " + "from myppy.util import remove_nonportable_libs\n"
-#            yield 8*" " + "remove_nonportable_libs(self.targetDir)\n"
-#            yield ln
-#            for ln in lines:
-#                yield ln
-#        self._patch_build_file(src,"cx_Freeze/freezer.py",add_removal_of_nonportable_libs)
-#        self.generic_pyinstall(src)
+class py_cxfreeze(PyRecipe):
+    DEPENDENCIES = ["python26"]
+    SOURCE_URL = "http://downloads.sourceforge.net/project/cx-freeze/4.2/cx_Freeze-4.2.tar.gz"
 
 
-#class py_bbfreeze(Recipe):
-#    DEPENDENCIES = ["python26"]
-#    def _install(self):
-#        src = self.fetch("http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-0.96.5.tar.gz#md5=1e095cb403a91cc7ebf17a3c0906b03f")
-#        self.generic_unpack(src)
-#        def add_double_link_libs(lines):
-#            for ln in lines:
-#                yield ln
-#                if ln.strip() == "libs.append(conf.PYTHONVERSION)":
-#                    yield "            libs.extend(libs[:-1])"
-#        self._patch_build_file(src,"setup.py",add_double_link_libs)
-#        def add_removal_of_nonportable_libs(lines):
-#            for ln in lines:
-#                yield ln
-#                if ln.strip() == "def _handle_ExcludedModule(self, m):":
-#                    yield 8*" " + "from myppy.util import remove_nonportable_libs\n"
-#                    yield 8*" " + "remove_nonportable_libs(self.distdir)\n"
-#        self._patch_build_file(src,"bbfreeze/freezer.py",add_removal_of_nonportable_libs)
-#        def add_support_for_pyw_files(lines):
-#            for ln in lines:
-#                yield ln
-#                if ln.strip() == "fn = fn[:-3]":
-#                    yield 12*" " + "elif fn.endswith('.pyw'):\n"
-#                    yield 16*" " + "fn = fn[:-4]\n"
-#        self._patch_build_file(src,"bbfreeze/freezer.py",add_support_for_pyw_files)
-#        self.generic_pyinstall(src)
+class py_bbfreeze(PyRecipe):
+    DEPENDENCIES = ["python26"]
+    SOURCE_URL = "http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-0.96.5.tar.gz"
+    def _patch(self):
+        super(py_bbfreeze,self)._patch()
+        def add_double_link_libs(lines):
+            for ln in lines:
+                yield ln
+                if ln.strip() == "libs.append(conf.PYTHONVERSION)":
+                    yield "            libs.extend(libs[:-1])"
+        self._patch_build_file(src,"setup.py",add_double_link_libs)
+        def add_support_for_pyw_files(lines):
+            for ln in lines:
+                yield ln
+                if ln.strip() == "fn = fn[:-3]":
+                    yield 12*" " + "elif fn.endswith('.pyw'):\n"
+                    yield 16*" " + "fn = fn[:-4]\n"
+        self._patch_build_file(src,"bbfreeze/freezer.py",add_support_for_pyw_files)
 
 
 class lib_gtk(Recipe):

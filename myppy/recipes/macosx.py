@@ -284,7 +284,8 @@ class python26(base.python26,Recipe):
         #  makes python install symlinks that point to themselves.  Use a fake
         #  prefix to avoid this, then just delete it later.
         fwdir = os.path.join(self.target.rootdir,"Contents","Frameworks")
-        return ["--enable-universalsdk",
+        return ["--enable-shared",
+                "--enable-universalsdk",
                 "--enable-framework="+fwdir,
                 "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
 
