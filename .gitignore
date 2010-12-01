@@ -10,3 +10,5 @@ esky/tests/eskytester.egg-info
 build/
 tutorial/*/dist
 TEST*
+MANIFEST
+dist/
