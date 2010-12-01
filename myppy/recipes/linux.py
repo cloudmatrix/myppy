@@ -345,8 +345,8 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
                               return reinterpret_cast<size_t>(__x); }
                           };
                       template<>
-                      struct hash<SbkBaseType *> {
-                          size_t operator()(const SbkBaseType * __x) const {
+                      struct hash<SbkObjectType *> {
+                          size_t operator()(const SbkObjectType * __x) const {
                               return reinterpret_cast<size_t>(__x); }
                           };
                       template<>
