@@ -440,3 +440,20 @@ class py_py2app(PyRecipe):
                 self.target.do("patch",stdin=fin)
 
 
+class py_PIL(PyRecipe):
+    SOURCE_URL = "http://effbot.org/media/downloads/PIL-1.1.7.tar.gz"
+    def _patch(self):
+        super(py_PIL,self)._patch()
+        def dont_use_system_frameworks(lines):
+            for ln in lines:
+                if ln.strip().startswith("add_directory("):
+                    if "/include" in ln or "/lib" in ln:
+                        yield " "*(ln.index("a")) + "pass\n"
+                    else:
+                        yield ln
+                else:
+                    yield ln
+                    if ln.strip() == "for root in framework_roots:":
+                        yield " "*(ln.index("f")+4) + "break\n"
+        self._patch_build_file("setup.py",dont_use_system_frameworks)
+
