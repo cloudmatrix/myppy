@@ -100,8 +100,6 @@ class MyppyEnv(base.MyppyEnv):
                        fpath + ": wrong SDK\n" + link
 
     def _adjust_linker_paths(self,fpath):
-        # TODO: disabling for now; py2app doesn't like @loader_path
-        return
         print "ADJUSTING LINKER PATHS", fpath
         if not os.path.isfile(fpath):
             return
