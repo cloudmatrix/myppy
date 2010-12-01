@@ -271,6 +271,10 @@ class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
     pass
 
 
+class PyRecipe(base.PyRecipe,Recipe):
+    pass
+
+
 class python26(base.python26,Recipe):
     """Install the basic Python interpreter, with myppy support."""
 
@@ -284,8 +288,7 @@ class python26(base.python26,Recipe):
         #  makes python install symlinks that point to themselves.  Use a fake
         #  prefix to avoid this, then just delete it later.
         fwdir = os.path.join(self.target.rootdir,"Contents","Frameworks")
-        return ["--enable-shared",
-                "--enable-universalsdk",
+        return ["--enable-universalsdk",
                 "--enable-framework="+fwdir,
                 "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
 
@@ -315,6 +318,7 @@ class python26(base.python26,Recipe):
 
     def install(self):
         super(python26,self).install()
+        #os.symlink("../Python",os.path.join(self.target.PREFIX,"lib","libpython2.6.dylib"))
         shutil.rmtree(os.path.join(self.target.rootdir,"fake-prefix"))
 
 
@@ -408,5 +412,31 @@ class lib_xml2(base.lib_xml2,NWayRecipe):
 
 class lib_xslt(base.lib_xslt,NWayRecipe):
     pass
+
+
+class py_modulegraph(PyRecipe):
+    SOURCE_URL = "http://pypi.python.org/packages/source/m/modulegraph/modulegraph-0.8.tar.gz"
+
+class py_altgraph(PyRecipe):
+    SOURCE_URL = "http://pypi.python.org/packages/source/a/altgraph/altgraph-0.7.0.tar.gz"
+
+class py_macholib(PyRecipe):
+    SOURCE_URL = "http://pypi.python.org/packages/source/m/macholib/macholib-1.3.tar.gz"
+    def _patch(self):
+        workdir = self._get_builddir()
+        patchfile = os.path.join(os.path.dirname(__file__),"_macholib.patch")
+        with open(patchfile,"rb") as fin:
+            with cd(os.path.join(workdir,"macholib")):
+                self.target.do("patch",stdin=fin)
+
+class py_py2app(PyRecipe):
+    DEPENDENCIES = ["py_altgraph","py_modulegraph","py_macholib"]
+    SOURCE_URL = "http://pypi.python.org/packages/source/p/py2app/py2app-0.5.2.tar.gz"
+    def _patch(self):
+        workdir = self._get_builddir()
+        patchfile = os.path.join(os.path.dirname(__file__),"_py2app.patch")
+        with open(patchfile,"rb") as fin:
+            with cd(os.path.join(workdir,"py2app")):
+                self.target.do("patch",stdin=fin)
 
 

@@ -430,6 +430,7 @@ class py_pip(PyRecipe):
     def build(self):
         pass
     def install(self):
+        self.target.do("env")
         self.target.do("easy_install","pip")
 
 
@@ -511,16 +512,14 @@ class lib_generatorrunner(CMakeRecipe):
 
 class lib_shiboken(PyCMakeRecipe):
     DEPENDENCIES = ["lib_apiextractor","lib_generatorrunner"]
-    #SOURCE_URL = "http://www.pyside.org/files/shiboken-0.5.1.tar.bz2"
-    #SOURCE_MD5 = "57e57ce6397c0047d08cf485b11b6011"
-    SOURCE_URL = "file:///storage/software/shiboken-trunk.tar.gz"
+    SOURCE_URL = "http://www.pyside.org/files/shiboken-0.5.1.tar.bz2"
+    SOURCE_MD5 = "57e57ce6397c0047d08cf485b11b6011"
 
 
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken",]
-    #SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.6+0.4.2.tar.bz2"
-    #SOURCE_MD5 = "0fceafa202d3b52ba00fd369b77e86ce"
-    SOURCE_URL = "file:///storage/software/pyside-trunk.tar.gz"
+    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.6+0.4.2.tar.bz2"
+    SOURCE_MD5 = "0fceafa202d3b52ba00fd369b77e86ce"
 
 
 class py_pyside_tools(CMakeRecipe):
