@@ -24,7 +24,8 @@ class MyppyEnv(base.MyppyEnv):
 
     @property
     def PYTHON_LIBRARY(self):
-        return os.path.join(self.PREFIX,"lib","libpython2.6.dylib")
+        #return os.path.join(self.PREFIX,"lib","libpython2.6.dylib")
+        return os.path.join(self.PREFIX,"Python")
 
     def __init__(self,rootdir):
         super(MyppyEnv,self).__init__(rootdir)
@@ -46,8 +47,7 @@ class MyppyEnv(base.MyppyEnv):
         os.symlink("Frameworks/Python.framework/Resources/Python.app/Contents/Resources",os.path.join(self.rootdir,"Contents","Resources"))
 
     def load_recipe(self,recipe):
-        return self.load_recipe_subclass(recipe,MyppyEnv,_macosx_recipes)
-
+        return self._load_recipe_subclass(recipe,MyppyEnv,_macosx_recipes)
 
     def record_files(self,recipe,files):
         #  Fix up linker paths for portability.
@@ -59,29 +59,30 @@ class MyppyEnv(base.MyppyEnv):
                 fnm = os.path.basename(fpath)
                 ext = fnm.rsplit(".",1)[-1]
                 if ext == "a":
-                    self._adjust_static_lib(fpath)
+                    self._adjust_static_lib(recipe,fpath)
                 elif ext in ("dylib","so",):
-                    self._adjust_dynamic_lib(fpath)
+                    self._adjust_dynamic_lib(recipe,fpath)
                 else:
                     fdesc =self.bt("file",fpath) 
                     if "Mach-O" in fdesc:
                         if "library" in fdesc:
-                            self._adjust_dynamic_lib(fpath)
+                            self._adjust_dynamic_lib(recipe,fpath)
                         elif "executable" in fdesc:
-                            self._adjust_executable(fpath)
+                            self._adjust_executable(recipe,fpath)
         super(MyppyEnv,self).record_files(recipe,files)
 
-    def _adjust_static_lib(self,fpath):
+    def _adjust_static_lib(self,recipe,fpath):
         self._check_lib_has_all_archs(fpath)
 
-    def _adjust_dynamic_lib(self,fpath):
+    def _adjust_dynamic_lib(self,recipe,fpath):
         self._check_lib_has_all_archs(fpath)
         self._check_lib_uses_correct_sdk(fpath)
         self._adjust_linker_paths(fpath)
 
-    def _adjust_executable(self,fpath):
+    def _adjust_executable(self,recipe,fpath):
         self._check_lib_has_all_archs(fpath)
-        self._check_lib_uses_correct_sdk(fpath)
+        if recipe not in ("py_py2app",):
+            self._check_lib_uses_correct_sdk(fpath)
         self._adjust_linker_paths(fpath)
 
     def _check_lib_has_all_archs(self,fpath):

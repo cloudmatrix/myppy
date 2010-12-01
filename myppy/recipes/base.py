@@ -430,6 +430,7 @@ class py_pip(PyRecipe):
     def build(self):
         pass
     def install(self):
+        self.target.do("env")
         self.target.do("easy_install","pip")
 
 
@@ -520,6 +521,7 @@ class py_pyside(PyCMakeRecipe):
 class py_pyside_tools(CMakeRecipe):
     SOURCE_URL = "http://www.pyside.org/files/pyside-tools-0.2.2.tar.bz2"
     SOURCE_MD5 = "5fe207cd8cd16ddbb033533fe7528011"
+
 
 class py_pypy(Recipe):
     SOURCE_URL = "http://pypy.org/download/pypy-1.4-src.tar.bz2"

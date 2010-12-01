@@ -25,6 +25,16 @@ The secret sauce is basically:
     so that their deps can be found regardless of where the myppy env is
     located.
 
+Some things haven't quite been sorted out yet:
+
+  * Scripts installed by easy_install and pip embed the absolute path to the
+    interpreter in the shebang line; they should be replaced by a loader stub
+    that finds python at runtime.
+
+  * distutils and sysconfig embed the absolute library paths as they were at
+    build time, meaning you can't properly build C-extensions if you move the
+    environment around.  They should be patched in a simlar way to virtualenv.
+
 
 Building a myppy environment
 ----------------------------
@@ -71,13 +81,13 @@ What is it good for?
 
 Why, everything that something like `portable python`_ is good for, but on
 Linux or OSX instead of Windows!  Use it as a convenient portable scripting or
-testing environment, or to run  multiple python versions side-by-side.
+testing environment, or to run multiple python versions side-by-side.
 
 One thing it's particularly good for (actually, the reason it was created) is
-building frozen Python apps on Linux.  Myppy comes with recipes for patched
-versions of cx-freeze and bbfreeze that will build stand-alone applications
-having the same portability as the myppy env itself - meaning they should
-run anywhere from ancient Red Hat distros to the latest Ubuntu release.
+building frozen Python apps.  Myppy comes with recipes for patched of cx-freeze
+and py2app that will build stand-alone applications having the same portability
+as the myppy env itself - meaning they should run anywhere from ancient Red Hat
+distros to the latest Ubuntu release.
 
 Myppy also has a few modifications that make it play nicely with other tools
 for building frozen applications, such as `esky`_ and `signedimp`_, mostly to
@@ -114,8 +124,8 @@ if sys.platform == "darwin":
     from myppy.envs.macosx import MyppyEnv
 elif sys.platform == "linux2":
     from myppy.envs.linux import MyppyEnv
-elif sys.platform == "win32":
-    from myppy.envs.win32 import MyppyEnv
+#elif sys.platform == "win32":
+#    from myppy.envs.win32 import MyppyEnv
 else:
     raise ImportError("myppy not available on platform %r" % (sys.platform,))
 
