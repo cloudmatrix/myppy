@@ -50,6 +50,7 @@ class MyppyEnv(object):
         self.builddir = os.path.join(self.rootdir,"build")
         self.cachedir = os.path.join(self.rootdir,"cache")
         self.env = os.environ.copy()
+        self._old_files_cache = None
         self._add_env_path("PATH",os.path.join(self.PREFIX,"bin"))
         self._has_db_lock = 0
         if not os.path.exists(self.rootdir):
@@ -233,16 +234,24 @@ class MyppyEnv(object):
         return False
 
     def _is_oldfile(self,file):
+        if self._old_files_cache is None:
+            self._old_files_cache = set()
+            for r in self._db.execute("SELECT filepath FROM installed_files"):
+                self._old_files_cache.add(r[0])
+        q = "SELECT * FROM installed_files WHERE filepath=?"
         file = file[len(self.rootdir)+1:]
         assert util.relpath(file) == file
+        if file in self._old_files_cache:
+            return True
         q = "SELECT * FROM installed_files WHERE filepath=?"
-        if not self._db.execute(q,(file,)).fetchone():
-            return False
-        return True
+        if self._db.execute(q,(file,)).fetchone():
+            return True
+        return False
  
     def find_new_files(self):
         #  os.walk has a bad habit of choking on unicode errors, so
-        #  we do it by hand and get it right.
+        #  we do it by hand and get it right.  Anything that can't
+        #  be decoded properly gets deleted.
         todo = [self.rootdir]
         while todo:
             dirpath = todo.pop(0)
@@ -275,6 +284,8 @@ class MyppyEnv(object):
             assert util.relpath(file) == file
             self._db.execute("INSERT INTO installed_files VALUES (?,?)",
                              (recipe,file,))
+            if self._old_files_cache is not None:
+                self._old_files_cache.add(file)
 
     def _initdb(self):
         self._db.execute("CREATE TABLE IF NOT EXISTS installed_files ("

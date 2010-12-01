@@ -131,7 +131,9 @@ def prune_dir(path):
         if e.errno == errno.ENOTEMPTY:
             pass
         elif e.errno == errno.ENOTDIR:
-            if os.path.islink(path) and not os.path.exists(path):
+            while path.endswith("/"):
+                path = path[:-1]
+            if os.path.islink(path):
                 os.unlink(path)
             else:
                 raise

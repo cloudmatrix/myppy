@@ -172,7 +172,7 @@ class Recipe(object):
                 for ln in filter(fIn):
                     fOut.write(ln)
             fOut.flush()
-        do("mv",tf,fpath)
+        do("mv","-f",tf,fpath)
         os.chmod(fpath,mod)
 
     def _patch_build_file(self,relpath,filter):
@@ -500,29 +500,39 @@ class py_wxpython(PyRecipe):
 
 class lib_apiextractor(CMakeRecipe):
     DEPENDENCIES = ["lib_xslt","lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.8.1.tar.bz2"
-    SOURCE_MD5 = "77ab7e88a809ccb91ec9cdd6cddd6087"
+    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.9.0.tar.bz2"
 
 
 class lib_generatorrunner(CMakeRecipe):
     DEPENDENCIES = ["lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/generatorrunner-0.6.2.tar.bz2"
-    SOURCE_MD5 = "d4e51907a3af33f5b93b2600aea5f8a6"
+    SOURCE_URL = "http://www.pyside.org/files/generatorrunner-0.6.3.tar.bz2"
 
 
 class lib_shiboken(PyCMakeRecipe):
     DEPENDENCIES = ["lib_apiextractor","lib_generatorrunner"]
-    SOURCE_URL = "http://www.pyside.org/files/shiboken-0.5.1.tar.bz2"
-    SOURCE_MD5 = "57e57ce6397c0047d08cf485b11b6011"
+    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta1.tar.bz2"
 
 
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken",]
-    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.6+0.4.2.tar.bz2"
-    SOURCE_MD5 = "0fceafa202d3b52ba00fd369b77e86ce"
+    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta1.tar.bz2"
 
 
 class py_pyside_tools(CMakeRecipe):
     SOURCE_URL = "http://www.pyside.org/files/pyside-tools-0.2.2.tar.bz2"
     SOURCE_MD5 = "5fe207cd8cd16ddbb033533fe7528011"
+
+
+class py_pypy(Recipe):
+    SOURCE_URL = "http://pypy.org/download/pypy-1.4-src.tar.bz2"
+    def build(self):
+        self._unpack()
+    def install(self):
+        workdir = self._get_builddir()
+        shutil.copytree(os.path.join(workdir,"py"),
+                        os.path.join(self.target.SITE_PACKAGES,"py"))
+        shutil.copytree(os.path.join(workdir,"lib-python"),
+                        os.path.join(self.target.SITE_PACKAGES,"lib-python"))
+        shutil.copytree(os.path.join(workdir,"pypy"),
+                        os.path.join(self.target.SITE_PACKAGES,"pypy"))
 
