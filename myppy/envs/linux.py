@@ -24,15 +24,21 @@ class MyppyEnv(base.MyppyEnv):
         self._add_env_path("PKG_CONFIG_PATH",os.path.join(self.PREFIX,
                                                           "lib/pkgconfig"))
 
+    _RECIPES_WITH_APGCC_PROBLEMS = ("apbuild_base","apbuild",
+                                    "lib_apiextractor",)
     def record_files(self,recipe,files):
         for fpath in files:
             fpath = os.path.join(self.rootdir,fpath)
             fnm = os.path.basename(fpath)
             if fpath == os.path.realpath(fpath):
-                if fnm.endswith(".so") or ".so." in fnm:
-                    if recipe not in ("apbuild_base","apbuild","lib_apiextractor",):
+                if recipe not in self._RECIPES_WITH_APGCC_PROBLEMS:
+                    if fnm.endswith(".so") or ".so." in fnm:
                         self._check_glibc_symbols(fpath)
                         self._adjust_rpath(fpath)
+                    elif "." not in fnm:
+                        fileinfo = self.bt("file",fpath)
+                        if "executable" in fileinfo and "ELF" in fileinfo:
+                            self._adjust_rpath(fpath)
         super(MyppyEnv,self).record_files(recipe,files)
 
     def _check_glibc_symbols(self,fpath):
