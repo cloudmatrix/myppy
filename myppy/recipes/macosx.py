@@ -318,7 +318,7 @@ class python26(base.python26,Recipe):
 
     def install(self):
         super(python26,self).install()
-        #os.symlink("../Python",os.path.join(self.target.PREFIX,"lib","libpython2.6.dylib"))
+        os.symlink("../Python",os.path.join(self.target.PREFIX,"lib","libpython2.6.dylib"))
         shutil.rmtree(os.path.join(self.target.rootdir,"fake-prefix"))
 
 
