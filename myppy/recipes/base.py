@@ -229,8 +229,9 @@ class python26(Recipe):
     def _patch(self):
         #  Add some builtin modules:
         #    * fcntl  (handy for use with esky)
-        #    * _md5 and _sha*  (handy for use with signedimp)
-        #    * time and zlib  (handy for use with zipimportx)
+        #    * _md5, _sha*  (handy for use with signedimp)
+        #    * time, zlib  (handy for use with zipimportx)
+        #    * _functools, itertools  (they're tiny and frequently used)
         def add_builtin_modules(lines):
             for ln in lines:
                 if ln.startswith("#fcntl"):
@@ -242,6 +243,10 @@ class python26(Recipe):
                 elif ln.startswith("#zlib"):
                     yield ln[1:]
                 elif ln.startswith("#time"):
+                    yield ln[1:]
+                elif ln.startswith("#_functools"):
+                    yield ln[1:]
+                elif ln.startswith("#itertools"):
                     yield ln[1:]
                 else:
                     yield ln
@@ -430,7 +435,6 @@ class py_pip(PyRecipe):
     def build(self):
         pass
     def install(self):
-        self.target.do("env")
         self.target.do("easy_install","pip")
 
 
@@ -477,18 +481,108 @@ class lib_wxwidgets(Recipe):
         open(os.path.join(self.target.PREFIX,"lib","wxwidgets-installed"),"wb").close()
 
 
-class lib_qt4(Recipe):
+#  We want to build qt4 with -fno-exceptions to reduce code size.
+#  Unfortunately apiextractor requires xmlpatterns requires exceptions.
+#  To work around it, we first build a static qt with exceptions, then
+#  build a dynamic qt without them.
+class lib_qt4_xmlpatterns(Recipe):
     DEPENDENCIES = ["lib_jpeg","lib_png","lib_tiff","lib_zlib"]
     SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
     SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
     CONFIGURE_VARS = None
+    DISABLE_FEATURES = ["concurrent","dom","cssparser","desktopservices",
+                        "filesystemwatcher","lcdnumber","movie","tablet",
+                        "networkinterface","tabletevent",
+                        "process","hostinfo",
+                        "textcodecplugin","translation","xinput","xfixes",
+                        "accessibility","statemachine","svg",
+                        "graphicsview",]
+    # TODO: patch for compiling without gestures, then re-disable textstream
+    # TODO: patch around unguarded use of QSettings, then re-disable
+    # TODO: why can't I compile without QLibrary?
     @property
     def CONFIGURE_ARGS(self):
-        return ("-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-libmng","-shared","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs","-I",os.path.join(self.target.PREFIX,"include"),"-L",os.path.join(self.target.PREFIX,"lib"))
+        args = ["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-static","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.target.PREFIX,"include"),"-L",os.path.join(self.target.PREFIX,"lib")]
+        for feature in self.DISABLE_FEATURES:
+            args.append("-no-feature-" + feature.lower())
+        return args
     def _configure(self):
         # automatically accept the LGPL
         with chstdin("yes"):
-            super(lib_qt4,self)._configure()
+            super(lib_qt4_xmlpatterns,self)._configure()
+    def _patch(self):
+        super(lib_qt4_xmlpatterns,self)._patch()
+        def optimize_for_size(lines):
+            for ln in lines:
+                yield ln.replace("-O2","-Os")
+        workdir = self._get_builddir()
+        for (dirnm,_,filenms) in os.walk(os.path.join(workdir,"mkspecs")):
+            for filenm in filenms:
+                filepath = os.path.join(dirnm,filenm)
+                self._patch_file(filepath,optimize_for_size)
+        def add_checks_for_graphics(lines):
+            for ln in lines:
+                if "QGraphicsProxyWidget" in ln:
+                    yield "#ifndef QT_NO_GRAPHICSVIEW\n"
+                    yield ln
+                    yield lines.next()
+                    yield "#endif //QT_NO_GRAPHICSVIEW\n"
+                else:
+                    yield ln
+        self._patch_build_file("src/gui/widgets/qcombobox.cpp",add_checks_for_graphics)
+        def add_checks_for_translation(lines):
+            for ln in lines:
+                if "QsTr" in ln:
+                    yield "#ifndef QT_NO_TRANSLATION\n"
+                    yield ln
+                    if not ln.strip().endswith(";"):
+                        ln = lines.next()
+                        assert ln.startswith("{")
+                        while not ln.startswith("}"):
+                            yield ln
+                            ln = lines.next()
+                        yield ln
+                    yield "#endif //QT_NO_TRANSLATION\n"
+                else:
+                    yield ln
+        self._patch_build_file("src/script/api/qscriptengine.cpp",add_checks_for_translation)
+    def install(self):
+        super(lib_qt4_xmlpatterns,self).install()
+        #  We want this to install only xmlpatterns; delete all others
+        for fpath in self.target.find_new_files():
+            if "QtXml" not in fpath:
+                if os.path.isfile(fpath) or os.path.islink(fpath):
+                    os.unlink(fpath)
+                else:
+                    shutil.rmtree(fpath)
+
+
+class lib_qt4(lib_qt4_xmlpatterns):
+    DEPENDENCIES = ["lib_qt4_xmlpatterns"]
+    DISABLE_FEATURES = lib_qt4_xmlpatterns.DISABLE_FEATURES + [
+                         "xmlstream",
+                       ]
+    @property
+    def CONFIGURE_ARGS(self):
+        args = super(lib_qt4,self).CONFIGURE_ARGS
+        args.remove("-static")
+        args.insert(0,"-shared")
+        args.insert(0,"-no-exceptions")
+        return args
+    def _configure(self):
+        # clean up the workdir after building for xmlpatterns
+        try:
+            workdir = self._get_builddir()
+        except IndexError:
+            pass
+        else:
+            with cd(workdir):
+                self.target.do("make","confclean")
+        super(lib_qt4,self)._configure()
+    def install(self):
+        #  We don't want to delete things like xmlpatterns.install() does
+        super(lib_qt4_xmlpatterns,self).install()
+
 
 
 class py_wxpython(PyRecipe):
@@ -504,18 +598,47 @@ class lib_apiextractor(CMakeRecipe):
 
 
 class lib_generatorrunner(CMakeRecipe):
-    DEPENDENCIES = ["lib_qt4"]
+    DEPENDENCIES = ["lib_apiextractor"]
     SOURCE_URL = "http://www.pyside.org/files/generatorrunner-0.6.3.tar.bz2"
 
 
 class lib_shiboken(PyCMakeRecipe):
-    DEPENDENCIES = ["lib_apiextractor","lib_generatorrunner"]
+    DEPENDENCIES = ["lib_generatorrunner"]
     SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta1.tar.bz2"
 
 
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken",]
     SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta1.tar.bz2"
+    EXCLUDE_CLASSES = ("QConicalGradient","QCommandLinkButon","QDataWidgetMapper","QFontDatabase","QFontComboBox",'QAbstractGraphicsShapeItem', 'QGraphicsAnchor', 'QGraphicsAnchorLayout', 'QGraphicsBlurEffect', 'QGraphicsColorizeEffect', 'QGraphicsDropShadowEffect', 'QGraphicsEffect', 'QGraphicsEllipseItem', 'QGraphicsGridLayout', 'QGraphicsItem', 'QGraphicsItemAnimation', 'QGraphicsItemGroup', 'QGraphicsLayout', 'QGraphicsLayoutItem', 'QGraphicsLineItem', 'QGraphicsLinearLayout', 'QGraphicsObject', 'QGraphicsOpacityEffect', 'QGraphicsPathItem', 'QGraphicsPixmapItem', 'QGraphicsPolygonItem', 'QGraphicsProxyWidget', 'QGraphicsRectItem', 'QGraphicsRotation', 'QGraphicsScale', 'QGraphicsScene', 'QGraphicsSceneContextMenuEvent', 'QGraphicsSceneDragDropEvent', 'QGraphicsSceneEvent', 'QGraphicsSceneHelpEvent', 'QGraphicsSceneHoverEvent', 'QGraphicsSceneMouseEvent', 'QGraphicsSceneMoveEvent', 'QGraphicsSceneResizeEvent', 'QGraphicsSceneWheelEvent', 'QGraphicsSimpleTextItem', 'QGraphicsTextItem', 'QGraphicsTransform', 'QGraphicsView', 'QGraphicsWidget', 'QStyleOptionGraphicsItem',)
+    def _patch(self):
+        super(py_pyside,self)._patch()
+        def trim_qtgui_modules(lines):
+            for ln in lines:
+               for nm in self.EXCLUDE_CLASSES:
+                   if nm.lower() + "_wrapper" in ln:
+                       break
+               else:
+                   yield ln
+        self._patch_build_file("PySide/QtGui/CMakeLists.txt",trim_qtgui_modules)
+        def reject_excluded_classes(lines):
+            for ln in lines:
+                if ln.strip() == "</typesystem>":
+                    for nm in self.EXCLUDE_CLASSES:
+                        yield "    <rejection class='%s' />\n" % (nm,)
+                    yield "    <rejection class='QWidget' function-name='graphicsEffect' />\n"
+                    yield "    <rejection class='QWidget' function-name='setGraphicsEffect' />\n"
+                    yield "    <rejection class='QWidget' function-name='graphicsProxyWidget' />\n"
+                    yield "    <rejection class='QAction' function-name='associatedGraphicsWidgets' />\n"
+                    yield ln
+                else:
+                    yield ln
+        self._patch_build_file("PySide/QtGui/typesystem_gui.xml.in",reject_excluded_classes)
+        def dont_build_qtsvg(lines):
+            for ln in lines:
+               if "QtSvg" not in ln:
+                   yield ln
+        self._patch_build_file("PySide/CMakeLists.txt",dont_build_qtsvg)
 
 
 class py_pyside_tools(CMakeRecipe):
@@ -527,6 +650,8 @@ class py_pypy(Recipe):
     SOURCE_URL = "http://pypy.org/download/pypy-1.4-src.tar.bz2"
     def build(self):
         self._unpack()
+        self._patch()
+                
     def install(self):
         workdir = self._get_builddir()
         shutil.copytree(os.path.join(workdir,"py"),

@@ -200,6 +200,17 @@ class _uninstall(_cmd):
         for arg in args:
             target.uninstall(arg)
 
+class _reinstall(_cmd):
+    """reinstall recipes into the env"""
+    @staticmethod
+    def run(target,args):
+        for arg in args:
+            target.load_recipe(arg)
+        for arg in args:
+            target.uninstall(arg)
+        for arg in args:
+            target.install(arg)
+
 class _shell(_cmd):
     """start an interactive shell inside env"""
     @staticmethod

@@ -27,12 +27,12 @@ class Recipe(base.Recipe):
     @property
     def CFLAGS(self):
         incdir = os.path.join(self.target.PREFIX,"include")
-        return "-D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
+        return "-Os -D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
 
     @property
     def CXXFLAGS(self):
         incdir = os.path.join(self.target.PREFIX,"include")
-        return "-D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
+        return "-Os -D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
 
     @property
     def LD_LIBRARY_PATH(self):
@@ -110,6 +110,9 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         super(CMakeRecipe,self)._generic_cmake(relpath,args,env)
 
 class PyRecipe(base.PyRecipe,Recipe):
+    pass
+
+class PyCMakeRecipe(base.PyCMakeRecipe,Recipe):
     pass
 
 
@@ -199,7 +202,9 @@ class lib_openssl(base.lib_openssl,Recipe):
         def ensure_gnu_source(lines):
             for ln in lines:
                 if ln.startswith("CFLAG="):
-                    yield ln.strip() + " -D_GNU_SOURCE\n"
+                    ln = ln.strip() + " -D_GNU_SOURCE\n"
+                    ln = ln.replace("-O3","-Os")
+                    yield ln
                 else:
                     yield ln
         self._patch_build_file("Makefile",ensure_gnu_source)
@@ -230,6 +235,15 @@ class py_bbfreeze(PyRecipe):
         self._patch_build_file(src,"bbfreeze/freezer.py",add_support_for_pyw_files)
 
 
+class lib_tiff(base.lib_tiff,Recipe):
+    @property
+    def CXXFLAGS(self):
+        flags = super(lib_tiff,self).CXXFLAGS
+        #  For whatever reason, -Os causes libtiff to suck in newer symbols.
+        flags = flags.replace("-Os","")
+        return flags
+
+
 class lib_gtk(Recipe):
     DEPENDENCIES = ["lib_glib","lib_pango","lib_atk","lib_tiff"]
     SOURCE_URL = "http://ftp.gnome.org/pub/gnome/sources/gtk+/2.8/gtk+-2.8.0.tar.gz"
@@ -253,16 +267,23 @@ class lib_gtk(Recipe):
             self._patch_file(fnm,undisable_deprecated)
 
 
-class lib_qt4(base.lib_qt4,Recipe):
+class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
     #  Build against an older version of fontconfig, so it doesn't suck
     #  in symbols that aren't available on older linuxen.
     DEPENDENCIES = ["lib_fontconfig"]
+    DISABLE_FEATURES = base.lib_qt4_xmlpatterns.DISABLE_FEATURES + [
+                          "inotify",
+                          "style_windows","style_motif","style_cde",
+                          "style_windowsxp","style_windowsvista",
+                          "style_windowsce","style_windowsmobile",
+                       ]
     @property
     def CONFIGURE_ARGS(self):
-        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
-        args.extend(["-no-feature-inotify","-no-glib",])
+        args = list(super(lib_qt4_xmlpatterns,self).CONFIGURE_ARGS)
+        args.append("-no-glib")
         return args
     def _patch(self):
+        super(lib_qt4_xmlpatterns,self)._patch()
         #  Disable some functions only available on newer linuxes.
         #  Fortunately qt provides runtime fallbacks for these.
         def dont_use_newer_funcs(lines):
@@ -277,6 +298,21 @@ class lib_qt4(base.lib_qt4,Recipe):
                     yield ln
         self._patch_build_file("src/corelib/kernel/qcore_unix_p.h",dont_use_newer_funcs)
         self._patch_build_file("src/network/socket/qnet_unix_p.h",dont_use_newer_funcs)
+        #  Disabling exceptions makes pthread_cleanup_push/pop require newer
+        #  glibc symbols.  Just disable them.
+        def dont_use_pthread_cleanup(lines):
+            for ln in lines:
+                if ln.strip().startswith("pthread_cleanup_push"):
+                    pass
+                elif ln.strip().startswith("pthread_cleanup_pop"):
+                    yield "    QThreadPrivate::finish(arg);\n"
+                else:
+                    yield ln
+        self._patch_build_file("src/corelib/thread/qthread_unix.cpp",dont_use_pthread_cleanup)
+
+
+class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
+    pass
 
 
 class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
@@ -457,4 +493,31 @@ class lib_glib(Recipe):
 class lib_atk(Recipe):
     SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/atk/1.11/atk-1.11.4.tar.bz2"
 
+
+class py_pyside(base.py_pyside,PyCMakeRecipe):
+    @property
+    def CXXFLAGS(self):
+        flags = super(Recipe,self).CXXFLAGS
+# this is needed for building Qt statically
+#        flags +=  "-lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig"
+        return flags
+
+
+class py_pypy(base.py_pypy,Recipe):
+    def _patch(self):
+        def dont_use_setaffinity(lines):
+            for ln in lines:
+                if ln.strip() == "# include <sched.h>":
+                    while ln.strip() != "#else":
+                        ln = lines.next()
+                    ln = lines.next()
+                    yield ln
+                    yield "#else\n"
+                    yield ln
+                    break
+                else: 
+                    yield ln
+            for ln in lines:
+                yield ln
+        self._patch_build_file("pypy/translator/c/src/debug_print.h",dont_use_setaffinity)
 
