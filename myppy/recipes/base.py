@@ -559,9 +559,6 @@ class lib_qt4_xmlpatterns(Recipe):
 
 class lib_qt4(lib_qt4_xmlpatterns):
     DEPENDENCIES = ["lib_qt4_xmlpatterns"]
-    DISABLE_FEATURES = lib_qt4_xmlpatterns.DISABLE_FEATURES + [
-                         "xmlstream",
-                       ]
     @property
     def CONFIGURE_ARGS(self):
         args = super(lib_qt4,self).CONFIGURE_ARGS
