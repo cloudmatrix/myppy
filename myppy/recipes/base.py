@@ -220,6 +220,17 @@ class cmake(Recipe):
     SOURCE_URL = "http://www.cmake.org/files/v2.8/cmake-2.8.3.tar.gz"
     CONFIGURE_VARS = None
     MAKE_VARS = ["VERBOSE=1"]
+    def install(self):
+        super(cmake,self).install()
+        def optimize_for_size(lines):
+            for ln in lines:
+                yield ln.replace("-O2","-Os").replace("-O3","-Os")
+        sharepath = os.path.join(self.target.PREFIX,"share","cmake-2.8")
+        for (dirnm,_,filenms) in os.walk(sharepath):
+            for filenm in filenms:
+                filepath = os.path.join(dirnm,filenm)
+                if filenm.endswith(".cmake"):
+                    self._patch_file(filepath,optimize_for_size)
 
 
 class python26(Recipe):
@@ -251,6 +262,11 @@ class python26(Recipe):
                 else:
                     yield ln
         self._patch_build_file("Modules/Setup.dist",add_builtin_modules)
+        def optimize_for_size(lines):
+            for ln in lines:
+                yield ln.replace("-O2","-Os").replace("-O3","-Os")
+        self._patch_build_file("configure",optimize_for_size)
+        self._patch_build_file("Modules/zlib/configure",optimize_for_size)
     def _configure(self):
         super(python26,self)._configure()
         #  Can't link epoll without symbols from a later libc.
@@ -490,19 +506,20 @@ class lib_qt4_xmlpatterns(Recipe):
     SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
     SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
     CONFIGURE_VARS = None
-    DISABLE_FEATURES = ["concurrent","dom","cssparser","desktopservices",
+    DISABLE_FEATURES = ["concurrent","dom","desktopservices",
                         "filesystemwatcher","lcdnumber","movie","tablet",
-                        "networkinterface","tabletevent",
-                        "process","hostinfo",
-                        "textcodecplugin","translation","xinput","xfixes",
-                        "accessibility","statemachine","svg",
-                        "graphicsview",]
-    # TODO: patch for compiling without gestures, then re-disable textstream
+                        "networkinterface","tabletevent","svg",
+                        "hostinfo","xinput","xfixes",
+                        "textcodecplugin","translation",
+                        "accessibility","statemachine",
+                        "graphicsview","quuid_string","codecs",]
+    DISABLE_FEATURES = []
     # TODO: patch around unguarded use of QSettings, then re-disable
     # TODO: why can't I compile without QLibrary?
+    # TODO: "process" is needed by generatorrunner
     @property
     def CONFIGURE_ARGS(self):
-        args = ["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-static","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.target.PREFIX,"include"),"-L",os.path.join(self.target.PREFIX,"lib")]
+        args = ["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-shared","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.target.PREFIX,"include"),"-L",os.path.join(self.target.PREFIX,"lib")]
         for feature in self.DISABLE_FEATURES:
             args.append("-no-feature-" + feature.lower())
         return args
@@ -514,7 +531,7 @@ class lib_qt4_xmlpatterns(Recipe):
         super(lib_qt4_xmlpatterns,self)._patch()
         def optimize_for_size(lines):
             for ln in lines:
-                yield ln.replace("-O2","-Os")
+                yield ln.replace("-O2","-Os").replace("-O3","-Os")
         workdir = self._get_builddir()
         for (dirnm,_,filenms) in os.walk(os.path.join(workdir,"mkspecs")):
             for filenm in filenms:
@@ -562,9 +579,10 @@ class lib_qt4(lib_qt4_xmlpatterns):
     @property
     def CONFIGURE_ARGS(self):
         args = super(lib_qt4,self).CONFIGURE_ARGS
-        args.remove("-static")
-        args.insert(0,"-shared")
-        args.insert(0,"-no-exceptions")
+        #args.remove("-static")
+        #args.insert(0,"-shared")
+        #args.insert(1,"-no-exceptions")
+        args.insert(2,"-no-xmlpatterns")
         return args
     def _configure(self):
         # clean up the workdir after building for xmlpatterns
@@ -573,8 +591,10 @@ class lib_qt4(lib_qt4_xmlpatterns):
         except IndexError:
             pass
         else:
-            with cd(workdir):
-                self.target.do("make","confclean")
+            if os.path.exists(os.path.join(workdir,"Makefile")):
+                with cd(workdir):
+                    self.target.do("make","clean")
+                    self.target.do("make","confclean")
         super(lib_qt4,self)._configure()
     def install(self):
         #  We don't want to delete things like xmlpatterns.install() does
@@ -607,12 +627,14 @@ class lib_shiboken(PyCMakeRecipe):
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken",]
     SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta1.tar.bz2"
-    EXCLUDE_CLASSES = ("QConicalGradient","QCommandLinkButon","QDataWidgetMapper","QFontDatabase","QFontComboBox",'QAbstractGraphicsShapeItem', 'QGraphicsAnchor', 'QGraphicsAnchorLayout', 'QGraphicsBlurEffect', 'QGraphicsColorizeEffect', 'QGraphicsDropShadowEffect', 'QGraphicsEffect', 'QGraphicsEllipseItem', 'QGraphicsGridLayout', 'QGraphicsItem', 'QGraphicsItemAnimation', 'QGraphicsItemGroup', 'QGraphicsLayout', 'QGraphicsLayoutItem', 'QGraphicsLineItem', 'QGraphicsLinearLayout', 'QGraphicsObject', 'QGraphicsOpacityEffect', 'QGraphicsPathItem', 'QGraphicsPixmapItem', 'QGraphicsPolygonItem', 'QGraphicsProxyWidget', 'QGraphicsRectItem', 'QGraphicsRotation', 'QGraphicsScale', 'QGraphicsScene', 'QGraphicsSceneContextMenuEvent', 'QGraphicsSceneDragDropEvent', 'QGraphicsSceneEvent', 'QGraphicsSceneHelpEvent', 'QGraphicsSceneHoverEvent', 'QGraphicsSceneMouseEvent', 'QGraphicsSceneMoveEvent', 'QGraphicsSceneResizeEvent', 'QGraphicsSceneWheelEvent', 'QGraphicsSimpleTextItem', 'QGraphicsTextItem', 'QGraphicsTransform', 'QGraphicsView', 'QGraphicsWidget', 'QStyleOptionGraphicsItem',)
+    EXCLUDE_CLASSES = ("QConicalGradient","QCommandLinkButon","QDataWidgetMapper","QFontDatabase","QFontComboBox",'QAbstractGraphicsShapeItem', 'QGraphicsAnchor', 'QGraphicsAnchorLayout', 'QGraphicsBlurEffect', 'QGraphicsColorizeEffect', 'QGraphicsDropShadowEffect', 'QGraphicsEffect', 'QGraphicsEllipseItem', 'QGraphicsGridLayout', 'QGraphicsItem', 'QGraphicsItemAnimation', 'QGraphicsItemGroup', 'QGraphicsLayout', 'QGraphicsLayoutItem', 'QGraphicsLineItem', 'QGraphicsLinearLayout', 'QGraphicsObject', 'QGraphicsOpacityEffect', 'QGraphicsPathItem', 'QGraphicsPixmapItem', 'QGraphicsPolygonItem', 'QGraphicsProxyWidget', 'QGraphicsRectItem', 'QGraphicsRotation', 'QGraphicsScale', 'QGraphicsScene', 'QGraphicsSceneContextMenuEvent', 'QGraphicsSceneDragDropEvent', 'QGraphicsSceneEvent', 'QGraphicsSceneHelpEvent', 'QGraphicsSceneHoverEvent', 'QGraphicsSceneMouseEvent', 'QGraphicsSceneMoveEvent', 'QGraphicsSceneResizeEvent', 'QGraphicsSceneWheelEvent', 'QGraphicsSimpleTextItem', 'QGraphicsTextItem', 'QGraphicsTransform', 'QGraphicsView', 'QGraphicsWidget', 'QStyleOptionGraphicsItem',"QCDEStyle","QWindowsXPStyle","QWindowsVistaStyle","QS60Style","QPrintPreviewDialog","QPrintPreviewWidget",)
     def _patch(self):
         super(py_pyside,self)._patch()
         def trim_qtgui_modules(lines):
             for ln in lines:
                for nm in self.EXCLUDE_CLASSES:
+                   if nm in ln and "check_qt_class" in ln:
+                       break
                    if nm.lower() + "_wrapper" in ln:
                        break
                else:
@@ -631,11 +653,16 @@ class py_pyside(PyCMakeRecipe):
                 else:
                     yield ln
         self._patch_build_file("PySide/QtGui/typesystem_gui.xml.in",reject_excluded_classes)
-        def dont_build_qtsvg(lines):
+        def dont_build_extra_modules(lines):
+            EXTRA_MODS = ("QtSvg","QtXml","QtTest","QtSql",
+                          "QtNetwok","QtScript")
             for ln in lines:
-               if "QtSvg" not in ln:
+               for mod in EXTRA_MODS:
+                   if mod in ln:
+                       break
+               else:
                    yield ln
-        self._patch_build_file("PySide/CMakeLists.txt",dont_build_qtsvg)
+        self._patch_build_file("PySide/CMakeLists.txt",dont_build_extra_modules)
 
 
 class py_pyside_tools(CMakeRecipe):

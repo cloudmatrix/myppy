@@ -112,7 +112,7 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
 class PyRecipe(base.PyRecipe,Recipe):
     pass
 
-class PyCMakeRecipe(base.PyCMakeRecipe,Recipe):
+class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
     pass
 
 
@@ -162,8 +162,9 @@ class apbuild(Recipe):
         #  The apgcc installer doesn't error out when it fails.
         #  Check that apgcc is actually available.
         self.target.do("apgcc","-v")
-        shutil.move(os.path.join(self.target.PREFIX,"bin/.proxy.apgcc"),
-                    os.path.join(self.target.PREFIX,"bin/apgcc"))
+        if os.path.exists(os.path.join(self.target.PREFIX,"bin/.proxy.apgcc")):
+            shutil.move(os.path.join(self.target.PREFIX,"bin/.proxy.apgcc"),
+                        os.path.join(self.target.PREFIX,"bin/apgcc"))
         #  Hack it to correctly detect pre-compiled header generation with
         #  the calling convention used by wxWidgets.
         def fix_pch_detection(lines):
@@ -273,8 +274,7 @@ class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
     DEPENDENCIES = ["lib_fontconfig"]
     DISABLE_FEATURES = base.lib_qt4_xmlpatterns.DISABLE_FEATURES + [
                           "inotify",
-                          "style_windows","style_motif","style_cde",
-                          "style_windowsxp","style_windowsvista",
+                          "style_cde","style_windowsxp","style_windowsvista",
                           "style_windowsce","style_windowsmobile",
                        ]
     @property
@@ -495,12 +495,7 @@ class lib_atk(Recipe):
 
 
 class py_pyside(base.py_pyside,PyCMakeRecipe):
-    @property
-    def CXXFLAGS(self):
-        flags = super(Recipe,self).CXXFLAGS
-# this is needed for building Qt statically
-#        flags +=  "-lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig"
-        return flags
+    pass
 
 
 class py_pypy(base.py_pypy,Recipe):
