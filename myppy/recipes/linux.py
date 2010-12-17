@@ -21,26 +21,26 @@ class Recipe(base.Recipe):
 
     @property
     def LDFLAGS(self):
-        libdir = os.path.join(self.target.PREFIX,"lib")
+        libdir = os.path.join(self.PREFIX,"lib")
         return "-static-libgcc -L%s" % (libdir,)
 
     @property
     def CFLAGS(self):
-        incdir = os.path.join(self.target.PREFIX,"include")
+        incdir = os.path.join(self.PREFIX,"include")
         return "-Os -D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
 
     @property
     def CXXFLAGS(self):
-        incdir = os.path.join(self.target.PREFIX,"include")
+        incdir = os.path.join(self.PREFIX,"include")
         return "-Os -D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
 
     @property
     def LD_LIBRARY_PATH(self):
-        return os.path.join(self.target.PREFIX,"lib")
+        return os.path.join(self.PREFIX,"lib")
 
     @property
     def PKG_CONFIG_PATH(self):
-        return os.path.join(self.target.PREFIX,"lib/pkgconfig")
+        return os.path.join(self.PREFIX,"lib/pkgconfig")
 
     @property
     def CONFIGURE_VARS(self):
@@ -144,10 +144,10 @@ class apbuild_base(Recipe):
             updir = self._unpack()
             try:
                 with chstdin("y"):
-                    self.target.do("bash",os.path.join(updir,"install"),"--prefix",self.target.PREFIX,"--silent")
+                    self.target.do("bash",os.path.join(updir,"install"),"--prefix",self.PREFIX,"--silent")
             except subprocess.CalledProcessError:
                 pass
-        open(os.path.join(self.target.PREFIX,"lib","apbuild-base--installed.txt"),"wb").close()
+        open(os.path.join(self.PREFIX,"lib","apbuild-base--installed.txt"),"wb").close()
 
 
 class apbuild(Recipe):
@@ -162,9 +162,9 @@ class apbuild(Recipe):
         #  The apgcc installer doesn't error out when it fails.
         #  Check that apgcc is actually available.
         self.target.do("apgcc","-v")
-        if os.path.exists(os.path.join(self.target.PREFIX,"bin/.proxy.apgcc")):
-            shutil.move(os.path.join(self.target.PREFIX,"bin/.proxy.apgcc"),
-                        os.path.join(self.target.PREFIX,"bin/apgcc"))
+        if os.path.exists(os.path.join(self.PREFIX,"bin/.proxy.apgcc")):
+            shutil.move(os.path.join(self.PREFIX,"bin/.proxy.apgcc"),
+                        os.path.join(self.PREFIX,"bin/apgcc"))
         #  Hack it to correctly detect pre-compiled header generation with
         #  the calling convention used by wxWidgets.
         def fix_pch_detection(lines):
@@ -268,22 +268,22 @@ class lib_gtk(Recipe):
             self._patch_file(fnm,undisable_deprecated)
 
 
-class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
+class lib_qt4(base.lib_qt4,Recipe):
     #  Build against an older version of fontconfig, so it doesn't suck
     #  in symbols that aren't available on older linuxen.
     DEPENDENCIES = ["lib_fontconfig"]
-    DISABLE_FEATURES = base.lib_qt4_xmlpatterns.DISABLE_FEATURES + [
-                          "inotify",
-                          "style_cde","style_windowsxp","style_windowsvista",
-                          "style_windowsce","style_windowsmobile",
-                       ]
+    @property
+    def DISABLE_FEATURES(self):
+        features = super(lib_qt4,self).DISABLE_FEATURES
+        features.append("inotify")
+        return features
     @property
     def CONFIGURE_ARGS(self):
-        args = list(super(lib_qt4_xmlpatterns,self).CONFIGURE_ARGS)
+        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
         args.append("-no-glib")
         return args
     def _patch(self):
-        super(lib_qt4_xmlpatterns,self)._patch()
+        super(lib_qt4,self)._patch()
         #  Disable some functions only available on newer linuxes.
         #  Fortunately qt provides runtime fallbacks for these.
         def dont_use_newer_funcs(lines):
@@ -311,8 +311,15 @@ class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
         self._patch_build_file("src/corelib/thread/qthread_unix.cpp",dont_use_pthread_cleanup)
 
 
-class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
-    pass
+class lib_qt4_small(base.lib_qt4_small,lib_qt4):
+    @property
+    def DISABLE_FEATURES(self):
+        features = super(lib_qt4_small,self).DISABLE_FEATURES
+        features.extend([
+                          "style_cde","style_windowsxp","style_windowsvista",
+                          "style_windowsce","style_windowsmobile",
+                       ])
+        return features
 
 
 class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
@@ -356,7 +363,7 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
     @property
     def CXXFLAGS(self):
         flags = super(lib_shiboken,self).CXXFLAGS
-        flags += " -I" + os.path.join(self.target.PREFIX,"include")
+        flags += " -I" + os.path.join(self.PREFIX,"include")
         return flags
     def _patch(self):
         super(lib_shiboken,self)._patch()

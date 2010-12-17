@@ -278,6 +278,7 @@ class MyppyEnv(object):
                                     yield fpath
 
     def record_files(self,recipe,files):
+        files = list(files)
         assert files, "recipe '%s' didn't install any files" % (recipe,)
         for file in files:
             file = file[len(self.rootdir)+1:]

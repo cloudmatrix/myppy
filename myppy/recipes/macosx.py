@@ -39,11 +39,11 @@ class Recipe(base.Recipe):
 
     @property
     def LDFLAGS(self):
-        return "-L" + os.path.join(self.target.PREFIX,"lib") + " -lstdc++"
+        return "-L" + os.path.join(self.PREFIX,"lib") + " -lstdc++"
 
     @property
     def INCFLAGS(self):
-        return "-I" + os.path.join(self.target.PREFIX,"include")
+        return "-I" + os.path.join(self.PREFIX,"include")
 
     @property
     def CFLAGS(self):
@@ -69,7 +69,7 @@ class Recipe(base.Recipe):
 
     @property
     def DYLD_FALLBACK_LIBRARY_PATH(self):
-        return os.path.join(self.target.PREFIX,"lib")
+        return os.path.join(self.PREFIX,"lib")
 
     def _generic_configure(self,script=None,vars=None,args=None,env={}):
         if vars is None and self.CONFIGURE_VARS is None:
@@ -250,14 +250,14 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
         workdir = self._get_builddir()
         cmd = ["cmake"]
-        cmd.append("-DCMAKE_INSTALL_PREFIX=%s" % (self.target.PREFIX,))
+        cmd.append("-DCMAKE_INSTALL_PREFIX=%s" % (self.PREFIX,))
         cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
         cmd.append("-DCMAKE_OSX_SYSROOT="+self.ISYSROOT)
         cmd.append("-DCMAKE_OSX_ARCHITECTURES="+";".join(self.TARGET_ARCHS))
         for arg in args:
             cmd.append(arg)
-        libdir = os.path.join(self.target.PREFIX,"lib")
-        incdir = os.path.join(self.target.PREFIX,"include")
+        libdir = os.path.join(self.PREFIX,"lib")
+        incdir = os.path.join(self.PREFIX,"include")
         env = env.copy()
         env.setdefault("LDFLAGS",self.LDFLAGS)
         env.setdefault("CFLAGS","%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
@@ -280,7 +280,7 @@ class python26(base.python26,Recipe):
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0 -L%s -lz -mmacosx-version-min=10.4 -isysroot %s" % (os.path.join(self.target.PREFIX,"lib"),self.ISYSROOT,)
+        return "/usr/bin/gcc-4.0 -L%s -lz -mmacosx-version-min=10.4 -isysroot %s" % (os.path.join(self.PREFIX,"lib"),self.ISYSROOT,)
 
     @property
     def CONFIGURE_ARGS(self):
@@ -309,7 +309,7 @@ class python26(base.python26,Recipe):
         def set_python_apps_dir(lines):
             for ln in lines:
                 if ln.startswith("PYTHONAPPSDIR="):
-                    yield "PYTHONAPPSDIR=" + self.target.PREFIX + "\n"
+                    yield "PYTHONAPPSDIR=" + self.PREFIX + "\n"
                 else:
                     yield ln
         self._patch_build_file("Mac/Makefile.in",set_python_apps_dir)
@@ -318,7 +318,7 @@ class python26(base.python26,Recipe):
 
     def install(self):
         super(python26,self).install()
-        os.symlink("../Python",os.path.join(self.target.PREFIX,"lib","libpython2.6.dylib"))
+        os.symlink("../Python",os.path.join(self.PREFIX,"lib","libpython2.6.dylib"))
         shutil.rmtree(os.path.join(self.target.rootdir,"fake-prefix"))
 
 
@@ -359,7 +359,7 @@ class lib_wxwidgets_stc(base.lib_wxwidgets_stc,NWayRecipe):
 
 class py_wxpython(base.py_wxpython,Recipe):
     def install(self):
-        wxconfig = os.path.join(self.target.PREFIX,"bin","wx-config")
+        wxconfig = os.path.join(self.PREFIX,"bin","wx-config")
         self._generic_pyinstall(relpath="wxPython",args=["WX_CONFIG="+wxconfig])
 
 

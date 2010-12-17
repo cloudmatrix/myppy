@@ -236,7 +236,8 @@ class _record(_cmd):
     @staticmethod
     def run(target,args):
         (recipe,) = args
-        files = target.find_new_files()
-        target.record_files(recipe,files)
+        with target:
+            files = list(target.find_new_files())
+            target.record_files(recipe,files)
 
 
