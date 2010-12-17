@@ -48,12 +48,12 @@ class Recipe(base.Recipe):
     @property
     def CFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
+        return "-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CXXFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
+        return "-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CONFIGURE_VARS(self):
@@ -144,11 +144,11 @@ class NWayRecipe(Recipe):
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0 -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
+        return "/usr/bin/gcc-4.0 -Os -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
 
     @property
     def CXX(self):
-        return "/usr/bin/g++-4.0 -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
+        return "/usr/bin/g++-4.0 -Os -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
 
     @property
     def CFLAGS(self):
@@ -254,14 +254,16 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
         cmd.append("-DCMAKE_OSX_SYSROOT="+self.ISYSROOT)
         cmd.append("-DCMAKE_OSX_ARCHITECTURES="+";".join(self.TARGET_ARCHS))
+        cmd.append("-DBUILD_TESTS=False")
+        cmd.append("-DCMAKE_BUILD_TYPE=MinSizeRel")
         for arg in args:
             cmd.append(arg)
         libdir = os.path.join(self.PREFIX,"lib")
         incdir = os.path.join(self.PREFIX,"include")
         env = env.copy()
         env.setdefault("LDFLAGS",self.LDFLAGS)
-        env.setdefault("CFLAGS","%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
-        env.setdefault("CXXFLAGS","%s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
+        env.setdefault("CFLAGS","-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
+        env.setdefault("CXXFLAGS","-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
         with cd(workdir):
             self.target.do(*cmd,env=env)
 
@@ -280,7 +282,7 @@ class python26(base.python26,Recipe):
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0 -L%s -lz -mmacosx-version-min=10.4 -isysroot %s" % (os.path.join(self.PREFIX,"lib"),self.ISYSROOT,)
+        return "/usr/bin/gcc-4.0 -Os -L%s -lz -mmacosx-version-min=10.4 -isysroot %s" % (os.path.join(self.PREFIX,"lib"),self.ISYSROOT,)
 
     @property
     def CONFIGURE_ARGS(self):
@@ -405,6 +407,12 @@ class lib_icu(Recipe):
     # TODO: hardcode charset to utf8 for extra performance
     SOURCE_URL = "http://download.icu-project.org/files/icu4c/4.4.2/icu4c-4_4_2-src.tgz"
     CONFIGURE_SCRIPT = "./source/configure"
+    @property
+    def LDFLAGS(self):
+        flags = super(lib_icu,self).LDFLAGS
+        flags += " -headerpad_max_install_names"
+        return flags
+    
 
 
 class lib_xml2(base.lib_xml2,NWayRecipe):
