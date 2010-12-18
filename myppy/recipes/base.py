@@ -512,6 +512,7 @@ class lib_qt4_xmlpatterns(Recipe):
         "textcodecplugin","translation",
         "accessibility","statemachine",
     ]
+    DISABLE_FEATURES = []
     @property
     def CONFIGURE_ARGS(self):
         args = []
@@ -523,7 +524,7 @@ class lib_qt4_xmlpatterns(Recipe):
         # clean up the workdir after building other qt versions
         try:
             workdir = self._get_builddir()
-        except (IndexError,EnvironmentError,):
+        except (IndexError,EnvironmentError,RuntimeError,):
             pass
         else:
             shutil.rmtree(workdir)
@@ -548,7 +549,7 @@ class lib_qt4_xmlpatterns(Recipe):
         #  We'll recompile these with -fno-exceptions.
         for filepath in self.target.find_new_files():
             if "QtXml" not in filepath:
-                if os.path.isfile(filepath):
+                if os.path.isfile(filepath) or os.path.islink(filepath):
                     os.unlink(filepath)
 
 
