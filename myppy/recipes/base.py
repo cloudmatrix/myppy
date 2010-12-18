@@ -496,37 +496,44 @@ class lib_wxwidgets(Recipe):
         open(os.path.join(self.PREFIX,"lib","wxwidgets-installed"),"wb").close()
 
 
-#  We build two versions of Qt: a full-featured one for running the various
-#  tools, and a stripped-down one for linking into the PySide binary.
-class lib_qt4(Recipe):
+#  We build two builds of Qt: a full-featured one for running the various
+#  tools, and then a stripped-down one for linking into the PySide binary.
+class lib_qt4_xmlpatterns(Recipe):
     DEPENDENCIES = ["lib_jpeg","lib_png","lib_tiff","lib_zlib"]
     #SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
     #SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
     SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-trunk.tar.gz"
     CONFIGURE_VARS = None
-    DISABLE_FEATURES = []
+    DISABLE_FEATURES = [
+        "concurrent","dom","desktopservices",
+        "filesystemwatcher","lcdnumber","movie","tablet",
+        "networkinterface","tabletevent","svg",
+        "hostinfo","xinput","xfixes","codecs",
+        "textcodecplugin","translation",
+        "accessibility","statemachine",
+    ]
     @property
     def CONFIGURE_ARGS(self):
-        args = ["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-shared","-opensource","-release","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.PREFIX,"include"),"-L",os.path.join(self.PREFIX,"lib")]
+        args = []
         for feature in self.DISABLE_FEATURES:
             args.append("-no-feature-" + feature.lower())
+        args.extend(["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-shared","-opensource","-release","-no-separate-debug-info","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.PREFIX,"include"),"-L",os.path.join(self.PREFIX,"lib")])
         return args
-    def _configure(self):
+    def _unpack(self):
         # clean up the workdir after building other qt versions
         try:
             workdir = self._get_builddir()
-        except IndexError:
+        except (IndexError,EnvironmentError,):
             pass
         else:
-            if os.path.exists(os.path.join(workdir,"Makefile")):
-                with cd(workdir):
-                    self.target.do("make","clean")
-                    self.target.do("make","confclean")
+            shutil.rmtree(workdir)
+        super(lib_qt4_xmlpatterns,self)._unpack()
+    def _configure(self):
         # automatically accept the LGPL
         with chstdin("yes"):
-            super(lib_qt4,self)._configure()
+            super(lib_qt4_xmlpatterns,self)._configure()
     def _patch(self):
-        super(lib_qt4,self)._patch()
+        super(lib_qt4_xmlpatterns,self)._patch()
         def optimize_for_size(lines):
             for ln in lines:
                 yield ln.replace("-O2","-Os").replace("-O3","-Os")
@@ -535,31 +542,27 @@ class lib_qt4(Recipe):
             for filenm in filenms:
                 filepath = os.path.join(dirnm,filenm)
                 self._patch_file(filepath,optimize_for_size)
+    def install(self):
+        super(lib_qt4_xmlpatterns,self).install()
+        #  Remove anything that's not a QtXml* library.
+        #  We'll recompile these with -fno-exceptions.
+        for filepath in self.target.find_new_files():
+            if "QtXml" not in filepath:
+                if os.path.isfile(filepath):
+                    os.unlink(filepath)
 
 
-class lib_qt4_small(lib_qt4):
-    @property
-    def INSTALL_PREFIX(self):
-        return os.path.join(self.PREFIX,"qt-small")
-    @property
-    def DISABLE_FEATURES(self):
-        features = list(super(lib_qt4_small,self).DISABLE_FEATURES)
-        # TODO: patch around unguarded use of QSettings, then re-disable
-        # TODO: why can't I compile without QLibrary?
-        features.extend(["concurrent","dom","desktopservices",
-                        "filesystemwatcher","lcdnumber","movie","tablet",
-                        "networkinterface","tabletevent","svg","process",
-                        "hostinfo","xinput","xfixes",
-                        "textcodecplugin","translation",
-                        "accessibility","statemachine",
-                        "graphicsview","quuid_string","codecs",])
-        return features
+class lib_qt4(lib_qt4_xmlpatterns):
+    DEPENDENCIES = ["lib_qt4_xmlpatterns"]
     @property
     def CONFIGURE_ARGS(self):
-        args = super(lib_qt4_small,self).CONFIGURE_ARGS
+        args = super(lib_qt4,self).CONFIGURE_ARGS
         args.insert(1,"-no-exceptions")
         args.insert(2,"-no-xmlpatterns")
         return args
+    def install(self):
+        #  Skip removal of non-xml modules, this is the real install.
+        super(lib_qt4_xmlpatterns,self).install()
 
 
 class py_wxpython(PyRecipe):
@@ -582,15 +585,10 @@ class lib_generatorrunner(CMakeRecipe):
 class lib_shiboken(PyCMakeRecipe):
     DEPENDENCIES = ["lib_generatorrunner"]
     SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta1.tar.bz2"
-    @property
-    def CXXFLAGS(self):
-        flags = super(py_pyside,self).CXXFLAGS
-        flags += " -fno-exceptions"
-        return flags
 
 
 class py_pyside(PyCMakeRecipe):
-    DEPENDENCIES = ["lib_shiboken",]#"lib_qt4_small"]
+    DEPENDENCIES = ["lib_shiboken",]
     SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta1.tar.bz2"
     @property
     def CXXFLAGS(self):
@@ -598,13 +596,9 @@ class py_pyside(PyCMakeRecipe):
         flags += " -fno-exceptions"
         return flags
     def _configure(self):
-        #qmake_path = os.path.join(lib_qt4_small(self.target).INSTALL_PREFIX,
-        qmake_path = os.path.join(self.PREFIX,
-                                  "bin","qmake")
         args = ("-DPYTHON_EXECUTABLE="+self.target.PYTHON_EXECUTABLE,
                 "-DPYTHON_INCLUDE_DIR="+self.target.PYTHON_HEADERS,
-                "-DPYTHON_LIBRARY="+self.target.PYTHON_LIBRARY,
-                "-DQT_QMAKE_EXECUTABLE="+qmake_path)
+                "-DPYTHON_LIBRARY="+self.target.PYTHON_LIBRARY)
         self._generic_cmake(args=args)
     def _patch(self):
         super(py_pyside,self)._patch()

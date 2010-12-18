@@ -268,22 +268,22 @@ class lib_gtk(Recipe):
             self._patch_file(fnm,undisable_deprecated)
 
 
-class lib_qt4(base.lib_qt4,Recipe):
+class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
     #  Build against an older version of fontconfig, so it doesn't suck
     #  in symbols that aren't available on older linuxen.
     DEPENDENCIES = ["lib_fontconfig"]
     @property
     def DISABLE_FEATURES(self):
-        features = super(lib_qt4,self).DISABLE_FEATURES
+        features = super(lib_qt4_xmlpatterns,self).DISABLE_FEATURES
         features.append("inotify")
         return features
     @property
     def CONFIGURE_ARGS(self):
-        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        args = list(super(lib_qt4_xmlpatterns,self).CONFIGURE_ARGS)
         args.append("-no-glib")
         return args
     def _patch(self):
-        super(lib_qt4,self)._patch()
+        super(lib_qt4_xmlpatterns,self)._patch()
         #  Disable some functions only available on newer linuxes.
         #  Fortunately qt provides runtime fallbacks for these.
         def dont_use_newer_funcs(lines):
@@ -311,10 +311,10 @@ class lib_qt4(base.lib_qt4,Recipe):
         self._patch_build_file("src/corelib/thread/qthread_unix.cpp",dont_use_pthread_cleanup)
 
 
-class lib_qt4_small(base.lib_qt4_small,lib_qt4):
+class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
     @property
     def DISABLE_FEATURES(self):
-        features = super(lib_qt4_small,self).DISABLE_FEATURES
+        features = super(lib_qt4,self).DISABLE_FEATURES
         features.extend([
                           "style_cde","style_windowsxp","style_windowsvista",
                           "style_windowsce","style_windowsmobile",
