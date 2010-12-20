@@ -551,6 +551,8 @@ class lib_qt4_xmlpatterns(Recipe):
             if "QtXml" not in filepath:
                 if os.path.isfile(filepath) or os.path.islink(filepath):
                     os.unlink(filepath)
+                elif os.path.isdir(filepath):
+                    prune_dir(filepath)
 
 
 class lib_qt4(lib_qt4_xmlpatterns):

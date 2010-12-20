@@ -393,18 +393,17 @@ class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
         args.extend(["-no-framework","-universal","-sdk",self.ISYSROOT,"-v",
                      "-platform","macx-g++40","-carbon"])
         return args
+
+
+class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
     def install(self):
-        super(lib_qt4_xmlpatterns,self).install()
+        super(lib_qt4,self).install()
         #  Copy the menu.nib bundle into the app resource directory.
         #  Otherwise Qt can't find it and complains.
         workdir = self._get_builddir()
         menunib_in = os.path.join(workdir,"src/gui/mac/qt_menu.nib")
         menunib_out = os.path.join(self.target.rootdir,"Contents","Resources","qt_menu.nib")
         shutil.copytree(menunib_in,menunib_out)
-
-
-class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
-    pass
 
 
 class lib_icu(Recipe):
