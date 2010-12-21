@@ -12,7 +12,8 @@ import subprocess
 import shutil
 
 import myppy
-from myppy.util import md5file, do, bt, cd, relpath, tempdir, chstdin
+from myppy.util import md5file, do, bt, cd, relpath, tempdir, chstdin, \
+                       prune_dir
 
 
 class _RecipeMetaclass(type):
@@ -372,6 +373,12 @@ class lib_bz2(Recipe):
         return ("PREFIX=" + self.PREFIX,)
     def _configure(self):
         pass
+    def _patch(self):
+        super(lib_bz2,self)._patch()
+        def optimize_for_size(lines):
+            for ln in lines:
+                yield ln.replace("-O2","-Os").replace("-O3","-Os")
+        self._patch_build_file("Makefile",optimize_for_size)
 
 
 class lib_readline(Recipe):
@@ -504,15 +511,25 @@ class lib_qt4_xmlpatterns(Recipe):
     #SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
     SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-trunk.tar.gz"
     CONFIGURE_VARS = None
-    DISABLE_FEATURES = [
-        "concurrent","dom","desktopservices",
-        "filesystemwatcher","lcdnumber","movie","tablet",
-        "networkinterface","tabletevent","svg",
-        "hostinfo","xinput","xfixes","codecs",
-        "textcodecplugin","translation",
-        "accessibility","statemachine",
-    ]
     DISABLE_FEATURES = []
+    @property
+    def CFLAGS(self):
+        flags = super(lib_qt4_xmlpatterns,self).CFLAGS
+        if "-static" in self.CONFIGURE_ARGS:
+            flags += " -fdata-sections -ffunction-sections -Wl,--gc-sections"
+        return flags
+    @property
+    def CXXFLAGS(self):
+        flags = super(lib_qt4_xmlpatterns,self).CXXFLAGS
+        if "-static" in self.CONFIGURE_ARGS:
+            flags += " -fdata-sections -ffunction-sections -Wl,--gc-sections"
+        return flags
+    @property
+    def LDFLAGS(self):
+        flags = super(lib_qt4_xmlpatterns,self).LDFLAGS
+        if "-static" in self.CONFIGURE_ARGS:
+            flags += " --gc-sections"
+        return flags
     @property
     def CONFIGURE_ARGS(self):
         args = []
@@ -594,9 +611,20 @@ class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken",]
     SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta1.tar.bz2"
     @property
+    def CFLAGS(self):
+        flags = super(py_pyside,self).CFLAGS
+        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
+            flags += " -Wl,--gc-sections"
+        return flags
+    @property
     def CXXFLAGS(self):
         flags = super(py_pyside,self).CXXFLAGS
-        flags += " -fno-exceptions"
+        flags += " -fno-exceptions -Wl,--gc-sections"
+        return flags
+    @property
+    def LDFLAGS(self):
+        flags = super(py_pyside,self).LDFLAGS
+        flags += " --gc-sections"
         return flags
     def _configure(self):
         args = ("-DPYTHON_EXECUTABLE="+self.target.PYTHON_EXECUTABLE,
@@ -615,20 +643,6 @@ class py_pyside(PyCMakeRecipe):
                else:
                    yield ln
         self._patch_build_file("PySide/CMakeLists.txt",dont_build_extra_modules)
-        #def add_trimmed_typesystem_qtcore(lines):
-        #    for ln in lines:
-        #        yield ln
-        #        if ln.strip().startswith("<typesystem"):
-        #            tspath = os.path.join(os.path.dirname(__file__),"typesystem_core_trimmed.xml")
-        #            yield "    <load-typesystem name='%s' generate='yes'/>" % (tspath,)
-        #self._patch_build_file("PySide/QtCore/typesystem_core.xml",add_trimmed_typesystem_qtcore)
-        #def add_trimmed_typesystem_qtgui(lines):
-        #    for ln in lines:
-        #        yield ln
-        #        if ln.strip().startswith("<typesystem"):
-        #            tspath = os.path.join(os.path.dirname(__file__),"typesystem_gui_trimmed.xml")
-        #            yield "    <load-typesystem name='%s' generate='yes'/>" % (tspath,)
-        #self._patch_build_file("PySide/QtGui/typesystem_gui.xml.in",add_trimmed_typesystem_qtgui)
 
 
 class py_pyside_tools(CMakeRecipe):

@@ -22,7 +22,8 @@ class Recipe(base.Recipe):
     @property
     def LDFLAGS(self):
         libdir = os.path.join(self.PREFIX,"lib")
-        return "-static-libgcc -L%s" % (libdir,)
+        flags = "-static-libgcc -L%s" % (libdir,)
+        return flags
 
     @property
     def CFLAGS(self):
@@ -312,14 +313,7 @@ class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
 
 
 class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
-    @property
-    def DISABLE_FEATURES(self):
-        features = super(lib_qt4,self).DISABLE_FEATURES
-        features.extend([
-                          "style_cde","style_windowsxp","style_windowsvista",
-                          "style_windowsce","style_windowsmobile",
-                       ])
-        return features
+    pass
 
 
 class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
@@ -364,6 +358,12 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
     def CXXFLAGS(self):
         flags = super(lib_shiboken,self).CXXFLAGS
         flags += " -I" + os.path.join(self.PREFIX,"include")
+        return flags
+    @property
+    def LDFLAGS(self):
+        flags = super(lib_shiboken,self).LDFLAGS
+        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
+            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
         return flags
     def _patch(self):
         super(lib_shiboken,self)._patch()
@@ -501,8 +501,29 @@ class lib_atk(Recipe):
     SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/atk/1.11/atk-1.11.4.tar.bz2"
 
 
+class lib_apiextractor(base.lib_apiextractor,CMakeRecipe):
+    @property
+    def LDFLAGS(self):
+        flags = super(lib_apiextractor,self).LDFLAGS
+        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
+            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
+        return flags
+
+class lib_generatorrunner(base.lib_generatorrunner,CMakeRecipe):
+    @property
+    def LDFLAGS(self):
+        flags = super(lib_generatorrunner,self).LDFLAGS
+        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
+            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
+        return flags
+
 class py_pyside(base.py_pyside,PyCMakeRecipe):
-    pass
+    @property
+    def LDFLAGS(self):
+        flags = super(py_pyside,self).LDFLAGS
+        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
+            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
+        return flags
 
 
 class py_pypy(base.py_pypy,Recipe):
