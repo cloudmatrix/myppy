@@ -594,7 +594,7 @@ class py_wxpython(PyRecipe):
 
 class lib_apiextractor(CMakeRecipe):
     DEPENDENCIES = ["lib_xslt","lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.9.0.tar.bz2"
+    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.9.1.tar.bz2"
 
 
 class lib_generatorrunner(CMakeRecipe):
@@ -604,12 +604,12 @@ class lib_generatorrunner(CMakeRecipe):
 
 class lib_shiboken(PyCMakeRecipe):
     DEPENDENCIES = ["lib_generatorrunner"]
-    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta1.tar.bz2"
+    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta2.tar.bz2"
 
 
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken",]
-    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta1.tar.bz2"
+    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta2.tar.bz2"
     @property
     def CFLAGS(self):
         flags = super(py_pyside,self).CFLAGS

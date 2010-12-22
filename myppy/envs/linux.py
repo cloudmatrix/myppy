@@ -72,6 +72,7 @@ class MyppyEnv(base.MyppyEnv):
             rpath = "/".join(backrefs) + "/lib"
             rpath = "${ORIGIN}:${ORIGIN}/" + rpath
             self.do("patchelf","--set-rpath",rpath,fpath)
+            self.do("strip",fpath)
 
     def load_recipe(self,recipe):
         return self._load_recipe_subclass(recipe,MyppyEnv,_linux_recipes)
