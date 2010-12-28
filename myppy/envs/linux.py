@@ -34,10 +34,12 @@ class MyppyEnv(base.MyppyEnv):
                 if recipe not in self._RECIPES_WITH_APGCC_PROBLEMS:
                     if fnm.endswith(".so") or ".so." in fnm:
                         self._check_glibc_symbols(fpath)
+                        self.do("strip",fpath)
                         self._adjust_rpath(fpath)
                     elif "." not in fnm:
                         fileinfo = self.bt("file",fpath)
                         if "executable" in fileinfo and "ELF" in fileinfo:
+                            self.do("strip",fpath)
                             self._adjust_rpath(fpath)
         super(MyppyEnv,self).record_files(recipe,files)
 
@@ -72,7 +74,6 @@ class MyppyEnv(base.MyppyEnv):
             rpath = "/".join(backrefs) + "/lib"
             rpath = "${ORIGIN}:${ORIGIN}/" + rpath
             self.do("patchelf","--set-rpath",rpath,fpath)
-            self.do("strip",fpath)
 
     def load_recipe(self,recipe):
         return self._load_recipe_subclass(recipe,MyppyEnv,_linux_recipes)
