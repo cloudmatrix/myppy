@@ -1,5 +1,10 @@
 
 
+v0.1.1:
+
+    * Focus on minimizing size of the build, e.g. using -Os.
+
+
 v0.1.0:
 
     * This is the first version so nothing's changed, right?

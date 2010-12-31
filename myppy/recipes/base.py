@@ -11,6 +11,8 @@ import urllib2
 import subprocess
 import shutil
 
+from textwrap import dedent
+
 import myppy
 from myppy.util import md5file, do, bt, cd, relpath, tempdir, chstdin, \
                        prune_dir
@@ -473,6 +475,16 @@ class py_myppy(Recipe):
         if os.path.exists(os.path.join(spdir,"myppy")):
             shutil.rmtree(os.path.join(spdir,"myppy"))
         shutil.copytree(myppy_root,os.path.join(spdir,"myppy"))
+        with open(os.path.join(self.PREFIX,"bin","myppy"),"w") as f:
+            f.write(dedent("""
+                #!/usr/bin/env python
+                if __name__ == "__main__":
+                    import sys
+                    import myppy
+                    res = myppy.main(sys.argv)
+                    sys.exit(res)
+            """))
+
 
 
 class lib_wxwidgets_base(Recipe):
@@ -505,6 +517,7 @@ class lib_wxwidgets(Recipe):
 
 #  We build two builds of Qt: a full-featured one for running the various
 #  tools, and then a stripped-down one for linking into the PySide binary.
+
 class lib_qt4_xmlpatterns(Recipe):
     DEPENDENCIES = ["lib_jpeg","lib_png","lib_tiff","lib_zlib"]
     #SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
@@ -563,7 +576,7 @@ class lib_qt4_xmlpatterns(Recipe):
     def install(self):
         super(lib_qt4_xmlpatterns,self).install()
         #  Remove anything that's not a QtXml* library.
-        #  We'll recompile these with -fno-exceptions.
+        #  We'll recompile the rest with -fno-exceptions.
         for filepath in self.target.find_new_files():
             if "QtXml" not in filepath:
                 if os.path.isfile(filepath) or os.path.islink(filepath):
