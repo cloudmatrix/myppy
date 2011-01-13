@@ -269,22 +269,22 @@ class lib_gtk(Recipe):
             self._patch_file(fnm,undisable_deprecated)
 
 
-class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
-    #  Build against an older version of fontconfig, so it doesn't suck
-    #  in symbols that aren't available on older linuxen.
-    DEPENDENCIES = ["lib_fontconfig"]
+class _lib_qt4_base(base._lib_qt4_base,Recipe):
+    #  Build against an older version of fontconfig and freetype, so we
+    #  don't suck in symbols that aren't available on older linuxen.
+    BUILD_DEPENDENCIES = ["lib_fontconfig_ft"]
     @property
     def DISABLE_FEATURES(self):
-        features = super(lib_qt4_xmlpatterns,self).DISABLE_FEATURES
+        features = super(_lib_qt4_base,self).DISABLE_FEATURES
         features.append("inotify")
         return features
     @property
     def CONFIGURE_ARGS(self):
-        args = list(super(lib_qt4_xmlpatterns,self).CONFIGURE_ARGS)
+        args = list(super(_lib_qt4_base,self).CONFIGURE_ARGS)
         args.append("-no-glib")
         return args
     def _patch(self):
-        super(lib_qt4_xmlpatterns,self)._patch()
+        super(_lib_qt4_base,self)._patch()
         #  Disable some functions only available on newer linuxes.
         #  Fortunately qt provides runtime fallbacks for these.
         def dont_use_newer_funcs(lines):
@@ -312,7 +312,10 @@ class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
         self._patch_build_file("src/corelib/thread/qthread_unix.cpp",dont_use_pthread_cleanup)
 
 
-class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
+class lib_qt4(base.lib_qt4,_lib_qt4_base):
+    pass
+
+class lib_qt4_full(base.lib_qt4_full,_lib_qt4_base):
     pass
 
 
@@ -325,11 +328,11 @@ class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
 
 
 class lib_sparsehash(Recipe):
-    """Google sparehash, using old hash function APIs.
+    """Google sparehash, using old C++ hash function APIs.
 
     This installs a private copy of the google sparsehash library, tricked into
     sucking in old definitions for hash_fun.h rather than the ones provided by
-    tr1.  Other libraries can then avoid sucking in the tr1 symbols.
+    C++ tr1.  Other libraries can then avoid sucking in the tr1 symbols.
     """
     SOURCE_URL = "http://google-sparsehash.googlecode.com/files/sparsehash-1.9.tar.gz"
     def _patch(self):
@@ -362,8 +365,8 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
     @property
     def LDFLAGS(self):
         flags = super(lib_shiboken,self).LDFLAGS
-        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
-            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
+        libdir = os.path.join(lib_qt4(self.target).INSTALL_PREFIX,"lib")
+        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
         return flags
     def _patch(self):
         super(lib_shiboken,self)._patch()
@@ -485,12 +488,18 @@ class lib_freetype(Recipe):
 class lib_fontconfig(Recipe):
     #  This is intentionally an old version.  We don't dsitribute it,
     #  but it's API compatible back to some old Linux distros.
-    DEPENDENCIES = ["lib_freetype"]
+    SOURCE_URL = "http://fontconfig.org/release/fontconfig-2.4.1.tar.gz"
+
+
+class lib_fontconfig_ft(lib_fontconfig):
+    BUILD_DEPENDENCIES = ["lib_freetype"]
+    #  This is intentionally an old version.  We don't dsitribute it,
+    #  but it's API compatible back to some old Linux distros.
     SOURCE_URL = "http://fontconfig.org/release/fontconfig-2.4.1.tar.gz"
 
 
 class lib_pango(Recipe):
-    DEPENDENCIES = ["lib_fontconfig"]
+    BUILD_DEPENDENCIES = ["lib_fontconfig"]
     SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/pango/1.12/pango-1.12.0.tar.bz2"
 
 class lib_glib(Recipe):
@@ -505,16 +514,16 @@ class lib_apiextractor(base.lib_apiextractor,CMakeRecipe):
     @property
     def LDFLAGS(self):
         flags = super(lib_apiextractor,self).LDFLAGS
-        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
-            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
+        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
+        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
         return flags
 
 class lib_generatorrunner(base.lib_generatorrunner,CMakeRecipe):
     @property
     def LDFLAGS(self):
         flags = super(lib_generatorrunner,self).LDFLAGS
-        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
-            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
+        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
+        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
         return flags
 
 class py_pyside(base.py_pyside,PyCMakeRecipe):
@@ -522,7 +531,7 @@ class py_pyside(base.py_pyside,PyCMakeRecipe):
     def LDFLAGS(self):
         flags = super(py_pyside,self).LDFLAGS
         if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
-            flags += " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE"
+            flags = " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " + flags
         return flags
 
 

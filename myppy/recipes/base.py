@@ -19,17 +19,27 @@ from myppy.util import md5file, do, bt, cd, relpath, tempdir, chstdin, \
 
 
 class _RecipeMetaclass(type):
+
     DEPENDENCIES = []
+    BUILD_DEPENDENCIES = []
+    CONFLICTS_WITH = []
+
     def __new__(mcls,name,bases,attrs):
-        DEPENDENCIES = list(attrs.get("DEPENDENCIES",[]))
+        mcls._merge_dep_attr("DEPENDENCIES",bases,attrs)
+        mcls._merge_dep_attr("BUILD_DEPENDENCIES",bases,attrs)
+        mcls._merge_dep_attr("CONFLICTS_WITH",bases,attrs)
+        return super(_RecipeMetaclass,mcls).__new__(mcls,name,bases,attrs)
+
+    @staticmethod
+    def _merge_dep_attr(attrnm,bases,attrs):
+        deps = list(attrs.get(attrnm,[]))
         for base in bases:
             if not isinstance(base,_RecipeMetaclass):
                 continue
-            for dep in base.DEPENDENCIES:
-                if dep not in DEPENDENCIES:
-                    DEPENDENCIES.append(dep)
-        attrs["DEPENDENCIES"] = DEPENDENCIES
-        return super(_RecipeMetaclass,mcls).__new__(mcls,name,bases,attrs)
+            for dep in getattr(base,attrnm):
+                if dep not in deps:
+                    deps.append(dep)
+        attrs[attrnm] = deps
 
         
 
@@ -39,6 +49,9 @@ class Recipe(object):
     __metaclass__ = _RecipeMetaclass
 
     DEPENDENCIES = []
+    BUILD_DEPENDENCIES = []
+    CONFLICTS_WITH = []
+
     SOURCE_URL = "http://source.url.is/missing.txt"
     SOURCE_MD5 = None
 
@@ -204,12 +217,13 @@ class PyRecipe(Recipe):
 
 
 class CMakeRecipe(Recipe):
-    DEPENDENCIES = ["cmake"]
+    BUILD_DEPENDENCIES = ["cmake"]
     def _configure(self):
         self._generic_cmake()
     def _generic_cmake(self,relpath=".",args=[],env={}):
         cmd = ["cmake"]
-        cmd.append("-DCMAKE_INSTALL_PREFIX=%s" % (self.PREFIX,))
+        cmd.append("-DCMAKE_INSTALL_PREFIX=%s" % (self.INSTALL_PREFIX,))
+        cmd.append("-DCMAKE_MODULE_PATH=%s" % (os.path.join(self.PREFIX,"share","cmake"),))
         cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
         cmd.append("-DBUILD_TESTS=False")
         cmd.append("-DCMAKE_BUILD_TYPE=MinSizeRel")
@@ -404,7 +418,7 @@ class lib_zlib(Recipe):
 
 
 class lib_png(Recipe):
-    SOURCE_URL = "http://sourceforge.net/projects/libpng/files/01-libpng-master/1.4.2/libpng-1.4.2.tar.gz/download"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng14/1.4.5/libpng-1.4.5.tar.xz"
 
 
 class lib_jpeg(Recipe):
@@ -518,7 +532,7 @@ class lib_wxwidgets(Recipe):
 #  We build two builds of Qt: a full-featured one for running the various
 #  tools, and then a stripped-down one for linking into the PySide binary.
 
-class lib_qt4_xmlpatterns(Recipe):
+class _lib_qt4_base(Recipe):
     DEPENDENCIES = ["lib_jpeg","lib_png","lib_tiff","lib_zlib"]
     #SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
     #SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
@@ -527,28 +541,27 @@ class lib_qt4_xmlpatterns(Recipe):
     DISABLE_FEATURES = []
     @property
     def CFLAGS(self):
-        flags = super(lib_qt4_xmlpatterns,self).CFLAGS
+        flags = super(_lib_qt4_base,self).CFLAGS
         if "-static" in self.CONFIGURE_ARGS:
             flags += " -fdata-sections -ffunction-sections -Wl,--gc-sections"
         return flags
     @property
     def CXXFLAGS(self):
-        flags = super(lib_qt4_xmlpatterns,self).CXXFLAGS
+        flags = super(_lib_qt4_base,self).CXXFLAGS
         if "-static" in self.CONFIGURE_ARGS:
             flags += " -fdata-sections -ffunction-sections -Wl,--gc-sections"
         return flags
     @property
     def LDFLAGS(self):
-        flags = super(lib_qt4_xmlpatterns,self).LDFLAGS
-        if "-static" in self.CONFIGURE_ARGS:
-            flags += " --gc-sections"
+        flags = super(_lib_qt4_base,self).LDFLAGS
+        flags += " --gc-sections"
         return flags
     @property
     def CONFIGURE_ARGS(self):
         args = []
         for feature in self.DISABLE_FEATURES:
             args.append("-no-feature-" + feature.lower())
-        args.extend(["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-shared","-opensource","-release","-no-separate-debug-info","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.PREFIX,"include"),"-L",os.path.join(self.PREFIX,"lib")])
+        args.extend(["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-opensource","-release","-no-separate-debug-info","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.PREFIX,"include"),"-L",os.path.join(self.PREFIX,"lib")])
         return args
     def _unpack(self):
         # clean up the workdir after building other qt versions
@@ -558,13 +571,13 @@ class lib_qt4_xmlpatterns(Recipe):
             pass
         else:
             shutil.rmtree(workdir)
-        super(lib_qt4_xmlpatterns,self)._unpack()
+        super(_lib_qt4_base,self)._unpack()
     def _configure(self):
         # automatically accept the LGPL
         with chstdin("yes"):
-            super(lib_qt4_xmlpatterns,self)._configure()
+            super(_lib_qt4_base,self)._configure()
     def _patch(self):
-        super(lib_qt4_xmlpatterns,self)._patch()
+        super(_lib_qt4_base,self)._patch()
         def optimize_for_size(lines):
             for ln in lines:
                 yield ln.replace("-O2","-Os").replace("-O3","-Os")
@@ -573,29 +586,29 @@ class lib_qt4_xmlpatterns(Recipe):
             for filenm in filenms:
                 filepath = os.path.join(dirnm,filenm)
                 self._patch_file(filepath,optimize_for_size)
-    def install(self):
-        super(lib_qt4_xmlpatterns,self).install()
-        #  Remove anything that's not a QtXml* library.
-        #  We'll recompile the rest with -fno-exceptions.
-        for filepath in self.target.find_new_files():
-            if "QtXml" not in filepath:
-                if os.path.isfile(filepath) or os.path.islink(filepath):
-                    os.unlink(filepath)
-                elif os.path.isdir(filepath):
-                    prune_dir(filepath)
 
 
-class lib_qt4(lib_qt4_xmlpatterns):
-    DEPENDENCIES = ["lib_qt4_xmlpatterns"]
+class lib_qt4(_lib_qt4_base):
     @property
     def CONFIGURE_ARGS(self):
-        args = super(lib_qt4,self).CONFIGURE_ARGS
-        args.insert(1,"-no-exceptions")
-        args.insert(2,"-no-xmlpatterns")
+        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        args.insert(1,"-shared")
+        #args.insert(1,"-static")
+        args.insert(2,"-no-exceptions")
+        args.insert(3,"-no-xmlpatterns")
         return args
-    def install(self):
-        #  Skip removal of non-xml modules, this is the real install.
-        super(lib_qt4_xmlpatterns,self).install()
+
+
+class lib_qt4_full(_lib_qt4_base):
+    CONFLICTS_WITH = ["lib_qt4"]
+    @property
+    def INSTALL_PREFIX(self):
+        return os.path.join(self.target.PREFIX,"qt4-full")
+    @property
+    def CONFIGURE_ARGS(self):
+        args = list(super(lib_qt4_full,self).CONFIGURE_ARGS)
+        args.insert(1,"-static")
+        return args
 
 
 class py_wxpython(PyRecipe):
@@ -606,28 +619,42 @@ class py_wxpython(PyRecipe):
 
 
 class lib_apiextractor(CMakeRecipe):
-    DEPENDENCIES = ["lib_xslt","lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.9.1.tar.bz2"
+    DEPENDENCIES = ["lib_xslt"]
+    BUILD_DEPENDENCIES = ["lib_qt4_full"]
+    CONFLICTS_WITH = []
+    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.9.2.tar.bz2"
+    
+    def _configure(self):
+        qmake = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,
+                             "bin","qmake")
+        args = ("-DQT_QMAKE_EXECUTABLE="+qmake,)
+        self._generic_cmake(args=args)
 
 
 class lib_generatorrunner(CMakeRecipe):
     DEPENDENCIES = ["lib_apiextractor"]
+    BUILD_DEPENDENCIES = ["lib_qt4_full"]
     SOURCE_URL = "http://www.pyside.org/files/generatorrunner-0.6.3.tar.bz2"
+    def _configure(self):
+        qmake = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,
+                             "bin","qmake")
+        args = ("-DQT_QMAKE_EXECUTABLE="+qmake,)
+        self._generic_cmake(args=args)
 
 
 class lib_shiboken(PyCMakeRecipe):
     DEPENDENCIES = ["lib_generatorrunner"]
-    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta2.tar.bz2"
+    BUILD_DEPENDENCIES = ["lib_qt4"]
+    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta3.tar.bz2"
 
 
 class py_pyside(PyCMakeRecipe):
-    DEPENDENCIES = ["lib_shiboken",]
-    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta2.tar.bz2"
+    DEPENDENCIES = ["lib_shiboken","lib_qt4"]
+    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta3.tar.bz2"
     @property
     def CFLAGS(self):
         flags = super(py_pyside,self).CFLAGS
-        if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
-            flags += " -Wl,--gc-sections"
+        flags += " -Wl,--gc-sections"
         return flags
     @property
     def CXXFLAGS(self):
@@ -639,11 +666,6 @@ class py_pyside(PyCMakeRecipe):
         flags = super(py_pyside,self).LDFLAGS
         flags += " --gc-sections"
         return flags
-    def _configure(self):
-        args = ("-DPYTHON_EXECUTABLE="+self.target.PYTHON_EXECUTABLE,
-                "-DPYTHON_INCLUDE_DIR="+self.target.PYTHON_HEADERS,
-                "-DPYTHON_LIBRARY="+self.target.PYTHON_LIBRARY)
-        self._generic_cmake(args=args)
     def _patch(self):
         super(py_pyside,self)._patch()
         def dont_build_extra_modules(lines):

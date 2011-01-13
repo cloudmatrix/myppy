@@ -107,7 +107,7 @@ class MyppyEnv(object):
     def init(self):
         """Build the base myppy python environment."""
         for dep in self.DEPENDENCIES:
-            self.install(dep,initialising=True)
+            self.install(dep,initialising=True,explicit=False)
         
     def clean(self):
         """Clean out temporary built files and the like."""
@@ -115,6 +115,10 @@ class MyppyEnv(object):
             shutil.rmtree(self.builddir)
         if os.path.exists(self.cachedir):
             shutil.rmtree(self.cachedir)
+        q = "SELECT DISTINCT recipe FROM installed_files"
+        for row in self._db.execute(q):
+            if not self.is_explicitly_installed(row[0]):
+                self.uninstall(row[0])
         for fpath in self.find_new_files():
             if os.path.isfile(fpath) or os.path.islink(fpath):
                 os.unlink(fpath)
@@ -126,6 +130,9 @@ class MyppyEnv(object):
         stdin = kwds.pop("stdin",None)
         if stdin is None:
             stdin = sys.stdin
+        for (k,v) in env.iteritems():
+            if not isinstance(v,basestring):
+                raise ValueError("NONSTRING %r => %r " % (k,v,))
         subprocess.check_call(cmdline,env=env,stdin=stdin,**kwds)
 
     def bt(self,*cmdline,**kwds):
@@ -154,19 +161,41 @@ class MyppyEnv(object):
         return True
 
     def is_installed(self,recipe):
-        q = "SELECT filepath FROM installed_files WHERE recipe=?"\
-            " LIMIT 1"
+        q = "SELECT filepath FROM installed_files WHERE recipe=? LIMIT 1"
         return (self._db.execute(q,(recipe,)).fetchone() is not None)
+
+    def is_explicitly_installed(self,recipe):
+        deps = set(self.DEPENDENCIES)
+        for row in self._db.execute("SELECT recipe FROM installed_recipes"):
+            deps.add(row[0])
+        todo = list(deps)
+        while todo:
+            r = self.load_recipe(todo.pop(0))
+            for dep in r.DEPENDENCIES:
+                if dep not in deps:
+                    deps.add(dep)
+                    todo.append(dep)
+        return recipe in deps
   
-    def install(self,recipe,initialising=False):
+    def install(self,recipe,initialising=False,explicit=True):
         """Install the named recipe into this myppy env."""
         if not self.is_installed(recipe):
             r = self.load_recipe(recipe)
             if not initialising and not self.is_initialised():
                 self.init()
+            for conflict in r.CONFLICTS_WITH:
+                if self.is_explicitly_installed(conflict):
+                    msg = "Recipe %r conflicts with %r, "
+                    msg += "which is already installed"
+                    msg %= (recipe,conflict,)
+                    raise RuntimeError(msg)
+                self.uninstall(conflict)
             for dep in r.DEPENDENCIES:
                 if dep != recipe:
-                    self.install(dep,initialising=initialising)
+                    self.install(dep,initialising=initialising,explicit=False)
+            for dep in r.BUILD_DEPENDENCIES:
+                if dep != recipe:
+                    self.install(dep,initialising=initialising,explicit=False)
             print "FETCHING", recipe
             r.fetch()
             with self:
@@ -178,11 +207,16 @@ class MyppyEnv(object):
                 files = list(self.find_new_files())
                 self.record_files(recipe,files)
                 print "INSTALLED", recipe
+        if explicit and not self.is_explicitly_installed(recipe):
+            q = "INSERT INTO installed_recipes VALUES (?)"
+            self._db.execute(q,(recipe,))
 
     def uninstall(self,recipe):
         """Uninstall the named recipe from this myppy env."""
         # TODO: remove things depending on it
         with self:
+            q = "DELETE FROM installed_recipes WHERE recipe=?"
+            self._db.execute(q,(recipe,))
             q = "SELECT filepath FROM installed_files WHERE recipe=?"\
                 " ORDER BY filepath DESC"
             files = [r[0] for r in self._db.execute(q,(recipe,))]
@@ -190,6 +224,9 @@ class MyppyEnv(object):
             self._db.execute(q,(recipe,))
             for file in files:
                 assert util.relpath(file) == file
+                if self._old_files_cache is not None:
+                    self._old_files_cache.remove(file)
+            for file in files:
                 filepath = os.path.join(self.rootdir,file)
                 if not os.path.exists(filepath):
                     continue
@@ -238,7 +275,6 @@ class MyppyEnv(object):
             self._old_files_cache = set()
             for r in self._db.execute("SELECT filepath FROM installed_files"):
                 self._old_files_cache.add(r[0])
-        q = "SELECT * FROM installed_files WHERE filepath=?"
         file = file[len(self.rootdir)+1:]
         assert util.relpath(file) == file
         if file in self._old_files_cache:
@@ -278,6 +314,7 @@ class MyppyEnv(object):
                                     yield fpath
 
     def record_files(self,recipe,files):
+        """Record the given list of files as installed for the given recipe."""
         files = list(files)
         assert files, "recipe '%s' didn't install any files" % (recipe,)
         for file in files:
@@ -289,6 +326,9 @@ class MyppyEnv(object):
                 self._old_files_cache.add(file)
 
     def _initdb(self):
+        self._db.execute("CREATE TABLE IF NOT EXISTS installed_recipes ("
+                         "  recipe STRING NOT NULL"
+                         ")")
         self._db.execute("CREATE TABLE IF NOT EXISTS installed_files ("
                          "  recipe STRING NOT NULL,"
                          "  filepath STRING NOT NULL"

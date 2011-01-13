@@ -4,6 +4,7 @@
 from __future__ import with_statement
 
 import os
+import stat
 
 from myppy.envs import base
 
@@ -34,14 +35,20 @@ class MyppyEnv(base.MyppyEnv):
                 if recipe not in self._RECIPES_WITH_APGCC_PROBLEMS:
                     if fnm.endswith(".so") or ".so." in fnm:
                         self._check_glibc_symbols(fpath)
-                        self.do("strip",fpath)
+                        self._strip(fpath)
                         self._adjust_rpath(fpath)
                     elif "." not in fnm:
                         fileinfo = self.bt("file",fpath)
                         if "executable" in fileinfo and "ELF" in fileinfo:
-                            self.do("strip",fpath)
+                            self._strip(fpath)
                             self._adjust_rpath(fpath)
         super(MyppyEnv,self).record_files(recipe,files)
+
+    def _strip(self,fpath):
+        mod = os.stat(fpath).st_mode
+        os.chmod(fpath,stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+        self.do("strip",fpath)
+        os.chmod(fpath,mod)
 
     def _check_glibc_symbols(self,fpath):
         print "VERIFYING GLIBC SYMBOLS", fpath

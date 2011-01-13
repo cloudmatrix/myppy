@@ -75,6 +75,12 @@ class MyppyEnv(base.MyppyEnv):
         self._check_lib_has_all_archs(fpath)
 
     def _adjust_dynamic_lib(self,recipe,fpath):
+        mod = os.stat(fpath).st_mode
+        try:
+            os.chmod(fpath,0x700)
+            self.do("strip",fpath)
+        finally:
+            os.chmod(fpath,mod)
         self._check_lib_has_all_archs(fpath)
         self._check_lib_uses_correct_sdk(fpath)
         self._adjust_linker_paths(fpath)

@@ -384,7 +384,7 @@ class lib_bz2(base.lib_bz2,NWayRecipe):
     pass
 
 
-class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
+class _lib_qt4_base(base._lib_qt4_base,Recipe):
     DEPENDENCIES = ["lib_icu"]
     @property
     def CONFIGURE_ARGS(self):
@@ -395,7 +395,7 @@ class lib_qt4_xmlpatterns(base.lib_qt4_xmlpatterns,Recipe):
         return args
 
 
-class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
+class lib_qt4(base.lib_qt4,_lib_qt4_base):
     def install(self):
         super(lib_qt4,self).install()
         #  Copy the menu.nib bundle into the app resource directory.
@@ -404,6 +404,10 @@ class lib_qt4(base.lib_qt4,lib_qt4_xmlpatterns):
         menunib_in = os.path.join(workdir,"src/gui/mac/qt_menu.nib")
         menunib_out = os.path.join(self.target.rootdir,"Contents","Resources","qt_menu.nib")
         shutil.copytree(menunib_in,menunib_out)
+
+
+class lib_qt4_full(base.lib_qt4_full,_lib_qt4_base):
+    pass
 
 
 class lib_icu(Recipe):
