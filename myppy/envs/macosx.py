@@ -4,6 +4,7 @@
 from __future__ import with_statement
 
 import os
+import stat
 import subprocess
 from textwrap import dedent
 
@@ -56,6 +57,8 @@ class MyppyEnv(base.MyppyEnv):
         if recipe not in ("cmake,"):
             for fpath in files:
                 fpath = os.path.join(self.rootdir,fpath)
+                if os.path.islink(fpath):
+                    continue
                 fnm = os.path.basename(fpath)
                 ext = fnm.rsplit(".",1)[-1]
                 if ext == "a":
@@ -76,11 +79,9 @@ class MyppyEnv(base.MyppyEnv):
 
     def _adjust_dynamic_lib(self,recipe,fpath):
         mod = os.stat(fpath).st_mode
-        try:
-            os.chmod(fpath,0x700)
-            self.do("strip",fpath)
-        finally:
-            os.chmod(fpath,mod)
+        os.chmod(fpath,mod | stat.S_IWUSR)
+        self.do("strip","-S","-x",fpath)
+        os.chmod(fpath,mod)
         self._check_lib_has_all_archs(fpath)
         self._check_lib_uses_correct_sdk(fpath)
         self._adjust_linker_paths(fpath)

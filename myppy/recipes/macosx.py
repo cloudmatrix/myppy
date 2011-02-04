@@ -1,4 +1,4 @@
-#  Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
+# Copyright (c) 2009-2010, Cloud Matrix Pty. Ltd.
 #  All rights reserved; available under the terms of the BSD License.
 
 from __future__ import with_statement
@@ -202,9 +202,11 @@ class NWayRecipe(Recipe):
             if not os.path.exists(archdir):
                 shutil.copytree(workdir,archdir)
             self.TARGET_ARCH = arch
+            print "BUILDING FOR ARCH", self.TARGET_ARCH
             nway_relpath = os.path.join(workdir,archdir)
             self._generic_make(vars,nway_relpath)
         self.TARGET_ARCH = self.LOCAL_ARCH
+        print "BUILDING FOR ARCH", self.TARGET_ARCH
         self._generic_make(vars)
 
     def _nway_merge(self,relpath="."):
@@ -233,6 +235,7 @@ class NWayRecipe(Recipe):
                     cmd.append(archdir+relfilepath)
                 cmd.append("-output")
                 cmd.append(fatdir+relfilepath)
+                print "NWAY MERGE", relfilepath
                 self.target.do(*cmd)
                 shutil.copystat(workdir+relfilepath,fatdir+relfilepath)
         # Now copy them back into the main build dir
@@ -240,7 +243,6 @@ class NWayRecipe(Recipe):
             for nm in filenms:
                 filepath = os.path.join(dirnm,nm)
                 relfilepath = filepath[len(fatdir):]
-                print "NWAY MERGE", relfilepath
                 shutil.copy2(filepath,workdir+relfilepath)
 
 
@@ -348,14 +350,17 @@ class lib_wxwidgets_base(base.lib_wxwidgets_base,NWayRecipe):
                 if nm.rsplit(".",1)[-1] not in ("h","cpp"):
                     continue
                 filepath = os.path.join(dirnm,nm)[len(workdir)+1:]
-                self.patch_build_file(filepath,add_explicit_casts)
+                self._patch_build_file(filepath,add_explicit_casts)
 
 
-class lib_wxwidgets_gizmos(base.lib_wxwidgets_gizmos,NWayRecipe):
+class lib_wxwidgets_gizmos(base.lib_wxwidgets_gizmos,lib_wxwidgets_base):
     pass
 
 
-class lib_wxwidgets_stc(base.lib_wxwidgets_stc,NWayRecipe):
+class lib_wxwidgets_stc(base.lib_wxwidgets_stc,lib_wxwidgets_base):
+    pass
+
+class lib_wxwidgets(base.lib_wxwidgets_stc,NWayRecipe):
     pass
 
 
@@ -388,7 +393,7 @@ class _lib_qt4_base(base._lib_qt4_base,Recipe):
     DEPENDENCIES = ["lib_icu"]
     @property
     def CONFIGURE_ARGS(self):
-        args = list(super(lib_qt4_xmlpatterns,self).CONFIGURE_ARGS)
+        args = list(super(_lib_qt4_base,self).CONFIGURE_ARGS)
         #  Must build carbon when targeting 10.4
         args.extend(["-no-framework","-universal","-sdk",self.ISYSROOT,"-v",
                      "-platform","macx-g++40","-carbon"])
@@ -471,4 +476,33 @@ class py_PIL(PyRecipe):
                     if ln.strip() == "for root in framework_roots:":
                         yield " "*(ln.index("f")+4) + "break\n"
         self._patch_build_file("setup.py",dont_use_system_frameworks)
+
+
+class py_pypy(base.py_pypy,Recipe):
+    def _patch(self):
+        def dont_use_WCOREDUMP(lines):
+            for ln in lines:
+                if ln.strip() == "if hasattr(os, 'WCOREDUMP'):":
+                    yield ln.replace("if ","if False and ")
+                else:
+                    yield ln
+        self._patch_build_file("pypy/rpython/module/ll_os.py",dont_use_WCOREDUMP)
+
+
+
+class lib_apiextractor(base.lib_apiextractor,CMakeRecipe):
+    @property
+    def LDFLAGS(self):
+        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
+        flags = super(lib_apiextractor,self).LDFLAGS
+        flags = ("-L%s -lQtNetwork -lQtCore -lz -framework CoreFoundation -framework Carbon -framework SystemConfiguration " % (libdir,)) + flags
+        return flags
+
+class lib_generatorrunner(base.lib_generatorrunner,CMakeRecipe):
+    @property
+    def LDFLAGS(self):
+        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
+        flags = super(lib_generatorrunner,self).LDFLAGS
+        flags = ("-L%s -lQtNetwork -lQtCore -lz -framework CoreFoundation -framework Carbon -framework SystemConfiguration " % (libdir,)) + flags
+        return flags
 

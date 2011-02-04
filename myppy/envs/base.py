@@ -291,7 +291,12 @@ class MyppyEnv(object):
         todo = [self.rootdir]
         while todo:
             dirpath = todo.pop(0)
-            names = os.listdir(dirpath)
+            try:
+                names = os.listdir(dirpath)
+            except OSError, e:
+                if e.errno not in (errno.ENOENT,):
+                    raise
+                continue
             if not names:
                 if not self._is_oldfile(dirpath + os.sep):
                     yield dirpath + os.sep
@@ -301,13 +306,13 @@ class MyppyEnv(object):
                         fpath = os.path.join(dirpath,nm)
                     except UnicodeDecodeError:
                         with util.cd(dirpath):
-                            if os.path.isdir(nm):
+                            if util.isrealdir(nm):
                                 shutil.rmtree(nm)
                             else:
                                 os.unlink(nm)
                     else:
                         if not self._is_tempfile(fpath):
-                            if os.path.isdir(fpath):
+                            if util.isrealdir(fpath):
                                 todo.append(fpath)
                             else:
                                 if not self._is_oldfile(fpath):

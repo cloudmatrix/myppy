@@ -166,3 +166,8 @@ def relpath_from(src,dst):
     return relpath
 
 
+
+def isrealdir(path):
+    """Check if path is a real directory, not a symlink to a directory."""
+    return (os.path.isdir(path) and not os.path.islink(path))
+

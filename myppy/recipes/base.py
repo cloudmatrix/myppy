@@ -418,7 +418,7 @@ class lib_zlib(Recipe):
 
 
 class lib_png(Recipe):
-    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng14/1.4.5/libpng-1.4.5.tar.xz"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng14/1.4.5/libpng-1.4.5.tar.gz"
 
 
 class lib_jpeg(Recipe):
@@ -504,6 +504,15 @@ class py_myppy(Recipe):
 class lib_wxwidgets_base(Recipe):
     SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2"
     CONFIGURE_ARGS = ("--with-opengl","--enable-unicode","--enable-optimize","--enable-debug_flag",)
+    def _unpack(self):
+        # clean up the workdir after building other qt versions
+        try:
+            workdir = self._get_builddir()
+        except (IndexError,EnvironmentError,RuntimeError,):
+            pass
+        else:
+            shutil.rmtree(workdir)
+        super(lib_wxwidgets_base,self)._unpack()
 
 
 class lib_wxwidgets_gizmos(lib_wxwidgets_base):
@@ -534,9 +543,9 @@ class lib_wxwidgets(Recipe):
 
 class _lib_qt4_base(Recipe):
     DEPENDENCIES = ["lib_jpeg","lib_png","lib_tiff","lib_zlib"]
-    #SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
-    #SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
-    SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-trunk.tar.gz"
+    SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
+    SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
+    #SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-trunk.tar.gz"
     CONFIGURE_VARS = None
     DISABLE_FEATURES = []
     @property
