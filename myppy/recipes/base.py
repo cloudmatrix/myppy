@@ -631,7 +631,7 @@ class lib_apiextractor(CMakeRecipe):
     DEPENDENCIES = ["lib_xslt"]
     BUILD_DEPENDENCIES = ["lib_qt4_full"]
     CONFLICTS_WITH = []
-    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.9.2.tar.bz2"
+    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.9.4.tar.bz2"
     
     def _configure(self):
         qmake = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,
@@ -643,7 +643,7 @@ class lib_apiextractor(CMakeRecipe):
 class lib_generatorrunner(CMakeRecipe):
     DEPENDENCIES = ["lib_apiextractor"]
     BUILD_DEPENDENCIES = ["lib_qt4_full"]
-    SOURCE_URL = "http://www.pyside.org/files/generatorrunner-0.6.3.tar.bz2"
+    SOURCE_URL = "http://www.pyside.org/files/generatorrunner-0.6.5.tar.bz2"
     def _configure(self):
         qmake = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,
                              "bin","qmake")
@@ -654,12 +654,12 @@ class lib_generatorrunner(CMakeRecipe):
 class lib_shiboken(PyCMakeRecipe):
     DEPENDENCIES = ["lib_generatorrunner"]
     BUILD_DEPENDENCIES = ["lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta3.tar.bz2"
+    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~beta5.tar.bz2"
 
 
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken","lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta3.tar.bz2"
+    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~beta5.tar.bz2"
     @property
     def CFLAGS(self):
         flags = super(py_pyside,self).CFLAGS
