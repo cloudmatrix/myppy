@@ -412,7 +412,7 @@ class lib_qt4_full(base.lib_qt4_full,_lib_qt4_base):
 
 class lib_icu(Recipe):
     # TODO: hardcode charset to utf8 for extra performance
-    SOURCE_URL = "http://download.icu-project.org/files/icu4c/4.4.2/icu4c-4_4_2-src.tgz"
+    SOURCE_URL = "http://download.icu-project.org/files/icu4c/4.6/icu4c-4_6-src.tgz"
     CONFIGURE_SCRIPT = "./source/configure"
     @property
     def LDFLAGS(self):
@@ -433,7 +433,7 @@ class py_modulegraph(PyRecipe):
     SOURCE_URL = "http://pypi.python.org/packages/source/m/modulegraph/modulegraph-0.8.tar.gz"
 
 class py_altgraph(PyRecipe):
-    SOURCE_URL = "http://pypi.python.org/packages/source/a/altgraph/altgraph-0.7.0.tar.gz"
+    SOURCE_URL = "http://pypi.python.org/packages/source/a/altgraph/altgraph-0.8.tar.gz"
 
 class py_macholib(PyRecipe):
     SOURCE_URL = "http://pypi.python.org/packages/source/m/macholib/macholib-1.3.tar.gz"

@@ -244,7 +244,7 @@ class PyCMakeRecipe(CMakeRecipe):
 
 
 class cmake(Recipe):
-    SOURCE_URL = "http://www.cmake.org/files/v2.8/cmake-2.8.3.tar.gz"
+    SOURCE_URL = "http://www.cmake.org/files/v2.8/cmake-2.8.4.tar.gz"
     CONFIGURE_VARS = None
     MAKE_VARS = ["VERBOSE=1"]
 
@@ -386,7 +386,7 @@ class lib_bz2(Recipe):
     SOURCE_MD5 = "00b516f4704d4a7cb50a1d97e6e8e15b"
     @property
     def MAKE_VARS(self):
-        return ("PREFIX=" + self.PREFIX,)
+        return ("PREFIX=" + self.INSTALL_PREFIX,)
     def _configure(self):
         pass
     def _patch(self):
@@ -398,8 +398,8 @@ class lib_bz2(Recipe):
 
 
 class lib_readline(Recipe):
-    SOURCE_URL = "ftp://ftp.cwru.edu/pub/bash/readline-6.1.tar.gz"
-    SOURCE_MD5 = "fc2f7e714fe792db1ce6ddc4c9fb4ef3"
+    SOURCE_URL = "ftp://ftp.cwru.edu/pub/bash/readline-6.2.tar.gz"
+    SOURCE_MD5 = "67948acb2ca081f23359d0256e9a271c"
     CONFIGURE_ARGS = ("--disable-shared","--enable-static",)
 
 
@@ -418,11 +418,12 @@ class lib_zlib(Recipe):
 
 
 class lib_png(Recipe):
-    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng14/1.4.5/libpng-1.4.5.tar.xz"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng14/1.4.5/libpng-1.5.1.tar.xz"
+    SOURCE_MD5 = "35455234375f1adff8083f408a099e3a"
 
 
 class lib_jpeg(Recipe):
-    SOURCE_URL = "http://www.ijg.org/files/jpegsrc.v8b.tar.gz"
+    SOURCE_URL = "http://www.ijg.org/files/jpegsrc.v8c.tar.gz"
 
 
 class lib_tiff(Recipe):
@@ -441,8 +442,8 @@ class lib_xslt(Recipe):
 
 
 class lib_openssl(Recipe):
-    SOURCE_URL = "http://www.openssl.org/source/openssl-1.0.0a.tar.gz"
-    SOURCE_MD5 = "e3873edfffc783624cfbdb65e2249cbd"
+    SOURCE_URL = "http://www.openssl.org/source/openssl-1.0.0d.tar.gz"
+    SOURCE_MD5 = "40b6ea380cc8a5bf9734c2f8bf7e701e"
     CONFIGURE_SCRIPT = "./Configure"
     CONFIGURE_ARGS = ["linux-elf"]
     CONFIGURE_VARS = None
@@ -457,8 +458,7 @@ class lib_openssl(Recipe):
 
 
 class lib_sqlite3(Recipe):
-    SOURCE_URL = "http://www.sqlite.org/sqlite-amalgamation-3.6.23.1.tar.gz"
-    SOURCE_MD5 = "ed585bb3d4e5c643843ebb1e318644ce"
+    SOURCE_URL = "http://www.sqlite.org/sqlite-autoconf-3070500.tar.gz"
 
 
 class py_setuptools(PyRecipe):
@@ -681,12 +681,13 @@ class py_pyside(PyCMakeRecipe):
 
 
 class py_pyside_tools(CMakeRecipe):
-    SOURCE_URL = "http://www.pyside.org/files/pyside-tools-0.2.2.tar.bz2"
-    SOURCE_MD5 = "5fe207cd8cd16ddbb033533fe7528011"
+    SOURCE_URL = "http://www.pyside.org/files/pyside-tools-0.2.7.tar.bz2"
+    SOURCE_MD5 = "43d31a95dfa1344095809f3176ab2cca"
 
 
 class py_pypy(Recipe):
-    SOURCE_URL = "http://pypy.org/download/pypy-1.4-src.tar.bz2"
+    SOURCE_URL = "http://pypy.org/download/pypy-1.4.1-src.tar.bz2"
+    SOURCE_MD5 = "ebbbb156b1eb842e9e65d909ed5f9f6d"
     def build(self):
         self._unpack()
         self._patch()

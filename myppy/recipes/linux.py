@@ -214,12 +214,12 @@ class lib_openssl(base.lib_openssl,Recipe):
 
 class py_cxfreeze(PyRecipe):
     DEPENDENCIES = ["python26"]
-    SOURCE_URL = "http://downloads.sourceforge.net/project/cx-freeze/4.2/cx_Freeze-4.2.tar.gz"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/cx-freeze/4.2.2/cx_Freeze-4.2.2.tar.gz"
 
 
 class py_bbfreeze(PyRecipe):
     DEPENDENCIES = ["python26"]
-    SOURCE_URL = "http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-0.96.5.tar.gz"
+    SOURCE_URL = "http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-0.97.2.tar.gz"
     def _patch(self):
         super(py_bbfreeze,self)._patch()
         def add_double_link_libs(lines):
@@ -246,6 +246,8 @@ class lib_tiff(base.lib_tiff,Recipe):
         return flags
 
 
+#  This is deliberately an old version of GTK; don't ship it with your
+#  frozen apps, just depend on the system GTK.
 class lib_gtk(Recipe):
     DEPENDENCIES = ["lib_glib","lib_pango","lib_atk","lib_tiff"]
     SOURCE_URL = "http://ftp.gnome.org/pub/gnome/sources/gtk+/2.8/gtk+-2.8.0.tar.gz"
@@ -334,7 +336,7 @@ class lib_sparsehash(Recipe):
     sucking in old definitions for hash_fun.h rather than the ones provided by
     C++ tr1.  Other libraries can then avoid sucking in the tr1 symbols.
     """
-    SOURCE_URL = "http://google-sparsehash.googlecode.com/files/sparsehash-1.9.tar.gz"
+    SOURCE_URL = "http://google-sparsehash.googlecode.com/files/sparsehash-1.10.tar.gz"
     def _patch(self):
         super(lib_sparsehash,self)._patch()
         def dont_use_tr1(lines):
