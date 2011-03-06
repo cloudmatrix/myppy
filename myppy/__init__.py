@@ -10,8 +10,9 @@ Myppy is a set of tools for building and managing a portable python environment.
 The end result is something similar in spirit to `portable python`_ but can
 be built for a variety of different platforms.
 
-Currently targeted build environments are linux-i686 and OSX.  When I work out
-how to build on win32 without firing up Visual Studio, I'll add that as well.
+Currently targeted build environments are linux-i686 and OSX.  There is some
+initial support for win32 but I need to figure out a lot of finer details of
+the build process.
 
 The secret sauce is basically:
 
@@ -124,8 +125,8 @@ if sys.platform == "darwin":
     from myppy.envs.macosx import MyppyEnv
 elif sys.platform == "linux2":
     from myppy.envs.linux import MyppyEnv
-#elif sys.platform == "win32":
-#    from myppy.envs.win32 import MyppyEnv
+elif sys.platform == "win32":
+    from myppy.envs.win32 import MyppyEnv
 else:
     raise ImportError("myppy not available on platform %r" % (sys.platform,))
 

@@ -81,7 +81,7 @@ class Recipe(base.Recipe):
             env.setdefault("CXXFLAGS",self.CXXFLAGS)
         super(Recipe,self)._generic_configure(script,vars,args,env)
 
-    def _generic_make(self,vars=None,relpath=None,env={}):
+    def _generic_make(self,vars=None,relpath=None,target=None,makefile=None,env={}):
         """Do a generic "make" for this recipe."""
         workdir = self._get_builddir()
         if vars is None:
@@ -92,28 +92,14 @@ class Recipe(base.Recipe):
         if vars is not None:
             cmd.extend(["CC="+self.CC,"CXX="+self.CXX])
             cmd.extend(vars)
+        if makefile is not None:
+            cmd.extend(("-f",makefile))
         cmd.extend(("-C",os.path.join(workdir,relpath)))
+        if target is not None:
+            cmd.append(target)
         env = env.copy()
         env.setdefault("DYLD_FALLBACK_LIBRARY_PATH",self.DYLD_FALLBACK_LIBRARY_PATH)
         self.target.do(*cmd,env=env)
-
-
-    def _generic_makeinstall(self,vars=None,relpath=None,env={}):
-        """Do a generic "make install" for this recipe."""
-        workdir = self._get_builddir()
-        if vars is None:
-            vars = self.MAKE_VARS
-        if relpath is None:
-            relpath = self.MAKE_RELPATH
-        cmd = ["make"]
-        if vars is not None:
-            cmd.extend(["CC="+self.CC,"CXX="+self.CXX])
-            cmd.extend(vars)
-        cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
-        env = env.copy()
-        env.setdefault("DYLD_FALLBACK_LIBRARY_PATH",self.DYLD_FALLBACK_LIBRARY_PATH)
-        self.target.do(*cmd,env=env)
-
 
     def _get_builddir(self):
         """Get the directory in which we build the given tarball.

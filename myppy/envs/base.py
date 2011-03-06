@@ -80,7 +80,10 @@ class MyppyEnv(object):
         """Add an entry to list of paths in an envionment variable."""
         PATH = self.env.get(key,"")
         if PATH:
-            self.env[key] = path + ":" + PATH
+            if sys.platform == "win32":
+                self.env[key] = path + ";" + PATH
+            else:
+                self.env[key] = path + ":" + PATH
         else:
             self.env[key] = path
 

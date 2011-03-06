@@ -87,7 +87,7 @@ class Recipe(object):
 
     def install(self):
         """Install all of the files for this recipe."""
-        self._generic_makeinstall()
+        self._generic_make(target="install")
 
     def _unpack(self):
         """Do a generic "tar -x" on the downloaded source tarball."""
@@ -141,20 +141,7 @@ class Recipe(object):
         with cd(workdir):
             self.target.do(*cmd,env=env)
 
-    def _generic_make(self,vars=None,relpath=None,env={}):
-        """Do a generic "make" for this recipe."""
-        workdir = self._get_builddir()
-        if vars is None:
-            vars = self.MAKE_VARS
-        if relpath is None:
-            relpath = self.MAKE_RELPATH
-        cmd = ["make"]
-        if vars is not None:
-            cmd.extend(vars)
-        cmd.extend(("-C",os.path.join(workdir,relpath)))
-        self.target.do(*cmd,env=env)
-
-    def _generic_makeinstall(self,vars=None,relpath=None,env={}):
+    def _generic_make(self,vars=None,relpath=None,target=None,makefile=None,env={}):
         """Do a generic "make install" for this recipe."""
         workdir = self._get_builddir()
         if vars is None:
@@ -164,7 +151,11 @@ class Recipe(object):
         cmd = ["make"]
         if vars is not None:
             cmd.extend(vars)
-        cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
+        if makefile is not None:
+            cmd.extend(("-f",makefile))
+        cmd.extend(("-C",os.path.join(workdir,relpath)))
+        if target is not None:
+            cmd.append(target)
         self.target.do(*cmd,env=env)
 
     def _generic_pyinstall(self,relpath="",args=[],env={}):
@@ -259,39 +250,33 @@ class python26(Recipe):
         #    * _md5, _sha*  (handy for use with signedimp)
         #    * time, zlib  (handy for use with zipimportx)
         #    * _functools, itertools  (they're tiny and frequently used)
-        def add_builtin_modules(lines):
-            for ln in lines:
-                if ln.startswith("#fcntl"):
-                    yield ln[1:]
-                elif ln.startswith("#_md5"):
-                    yield ln[1:]
-                elif ln.startswith("#_sha"):
-                    yield ln[1:]
-                elif ln.startswith("#zlib"):
-                    yield ln[1:]
-                elif ln.startswith("#time"):
-                    yield ln[1:]
-                elif ln.startswith("#_functools"):
-                    yield ln[1:]
-                elif ln.startswith("#itertools"):
-                    yield ln[1:]
-                else:
-                    yield ln
-        self._patch_build_file("Modules/Setup.dist",add_builtin_modules)
+        self._add_builtin_module("fcntl")
+        self._add_builtin_module("_md5")
+        self._add_builtin_module("_sha")
+        self._add_builtin_module("zlib")
+        self._add_builtin_module("time")
+        self._add_builtin_module("_functools")
+        self._add_builtin_module("itertools")
         def optimize_for_size(lines):
             for ln in lines:
                 yield ln.replace("-O2","-Os").replace("-O3","-Os")
         self._patch_build_file("configure",optimize_for_size)
         self._patch_build_file("Modules/zlib/configure",optimize_for_size)
+
+    def _add_builtin_module(self,modnm):
+        def addit(lines):
+            for ln in lines:
+                if ln.startswith("#"+modnm):
+                    yield ln[1:]
+                else:
+                    yield ln
+        self._patch_build_file("Modules/Setup.dist",addit)
+
     def _configure(self):
         super(python26,self)._configure()
-        #  Can't link epoll without symbols from a later libc.
-        #  We'll have to settle for old-fashioned select().
-        def remove_have_epoll(lines):
-            for ln in lines:
-                if "HAVE_EPOLL" not in ln:
-                    yield ln
-        self._patch_build_file("pyconfig.h",remove_have_epoll)
+        self._post_config_patch()
+
+    def _post_config_patch(self):
         #  Patch the zipimport module to accept zipfiles with comments.
         #  This is very handy when signing executables with appended zipfiles.
         def allow_zipfile_comments(lines):
