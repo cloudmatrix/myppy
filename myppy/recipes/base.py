@@ -403,7 +403,7 @@ class lib_zlib(Recipe):
 
 
 class lib_png(Recipe):
-    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng15/1.5.1/libpng-1.5.1.tar.xz"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng15/1.5.1/libpng-1.5.1.tar.gz"
 
 
 class lib_jpeg(Recipe):
