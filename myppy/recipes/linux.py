@@ -60,7 +60,7 @@ class Recipe(base.Recipe):
             env.setdefault("PKG_CONFIG_PATH",self.PKG_CONFIG_PATH)
         super(Recipe,self)._generic_configure(script,vars,args,env)
 
-    def _generic_make(self,vars=None,relpath=None,env={}):
+    def _generic_make(self,vars=None,relpath=None,target=None,makefile=None,env={}):
         """Do a generic "make" for this recipe."""
         env = env.copy()
         env.setdefault("LD_LIBRARY_PATH",self.LD_LIBRARY_PATH)
@@ -73,21 +73,11 @@ class Recipe(base.Recipe):
         if vars is not None:
             cmd.extend(["CC=apgcc","CXX=apg++"])
             cmd.extend(vars)
+        if makefile is not None:
+            cmd.extend(("-f",makefile))
         cmd.extend(("-C",os.path.join(workdir,relpath)))
-        self.target.do(*cmd,env=env)
-
-    def _generic_makeinstall(self,vars=None,relpath=None,env={}):
-        """Do a generic "make install" for this recipe."""
-        workdir = self._get_builddir()
-        if vars is None:
-            vars = self.MAKE_VARS
-        if relpath is None:
-            relpath = self.MAKE_RELPATH
-        cmd = ["make"]
-        if vars is not None:
-            cmd.extend(["CC=apgcc","CXX=apg++"])
-            cmd.extend(vars)
-        cmd.extend(("-C",os.path.join(workdir,relpath),"install"))
+        if target is not None:
+            cmd.append(target)
         self.target.do(*cmd,env=env)
 
     def _generic_pyinstall(self,relpath="",args=[],env={}):
@@ -184,6 +174,9 @@ class python26(base.python26,Recipe,):
     DEPENDENCIES = ["lib_openssl"]
     def _configure(self):
         super(python26,self)._configure()
+
+    def _post_config_patch(self):
+        super(python26,self)._post_config_patch()
         #  Can't link epoll without symbols from a later libc.
         #  We'll have to settle for old-fashioned select().
         def remove_have_epoll(lines):
@@ -506,7 +499,6 @@ class lib_pango(Recipe):
 
 class lib_glib(Recipe):
     SOURCE_URL = "http://ftp.gnome.org/pub/gnome/sources/glib/2.10/glib-2.10.0.tar.bz2"
-
 
 class lib_atk(Recipe):
     SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/atk/1.11/atk-1.11.4.tar.bz2"
