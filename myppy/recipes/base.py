@@ -429,7 +429,7 @@ class lib_openssl(Recipe):
     SOURCE_URL = "http://www.openssl.org/source/openssl-1.0.0d.tar.gz"
     SOURCE_MD5 = "40b6ea380cc8a5bf9734c2f8bf7e701e"
     CONFIGURE_SCRIPT = "./Configure"
-    CONFIGURE_ARGS = ["linux-elf"]
+    CONFIGURE_ARGS = ["linux-elf","shared"]
     CONFIGURE_VARS = None
     def _patch(self):
         super(lib_openssl,self)._patch()
@@ -692,4 +692,130 @@ class py_pypy(Recipe):
                         os.path.join(self.target.SITE_PACKAGES,"lib-python"))
         shutil.copytree(os.path.join(workdir,"pypy"),
                         os.path.join(self.target.SITE_PACKAGES,"pypy"))
+
+
+
+class lib_postgresql(Recipe):
+    DEPENDENCIES = ["lib_openssl", "lib_zlib"]
+    SOURCE_URL = "ftp://ftp.postgresql.org/pub/source/v9.0.2/postgresql-9.0.2.tar.gz"
+    SOURCE_MD5 = "30e87e704e75c2c5b141182b0a37bbf0"
+    @property
+    def CONFIGURE_ARGS(self):
+        return ("--disable-shared","--enable-depend","--without-tcl","--without-perl",
+            "--without-python","--without-readline","--without-krb5","--without-gssapi",
+            "--disable-nls","--without-pam","--enable-integer-datetimes","--with-openssl",
+            "--enable-thread-safety","--with-zlib","--without-ldap", "--disable-debug",
+            "--disable-coverage","--disable-profiling","--disable-cassert",)
+
+
+class lib_mysql(Recipe):
+    DEPENDENCIES = ["lib_openssl", "lib_zlib"]
+    SOURCE_URL = "http://downloads.mysql.com/archives/mysql-5.0/mysql-5.0.91.tar.gz"
+    SOURCE_MD5 = "e28f93b1a1b10b028135c1d51bbd4c46"
+    # libmysql is statically linked
+    @property
+    def CONFIGURE_ARGS(self):
+        return ("--libdir=%s" % os.path.join(self.target.PREFIX, 'lib'),
+            "--without-server", "--without-embedded-server", "--without-docs",
+            "--without-man", "--with-low-memory", "--with-extra-charsets=all",
+            "--enable-thread-safe-client", "--without-libwrap", "--disable-shared", "--enable-static",
+            "--without-debug", "--with-charset=utf8", "--with-collation=utf8_general_ci",
+            "--without-embedded-privilege-control", "--without-embedded-server",
+            "--without-bench", "--enable-assembler", "--without-isam", "--without-innodb",
+            "--without-extra-tools", "--with-openssl=%s" % self.target.PREFIX,
+            "--without-berkeley-db", "--with-geometry", "--disable-profiling",
+            "--with-zlib-dir=%s"%self.target.PREFIX)
+
+    def install(self):
+        self._generic_makeinstall()
+        # create symlinks in lib folder
+        with cd(os.path.join(self.target.PREFIX,'lib')):
+            os.system('ln -s mysql/libmysqlclient.a')
+            os.system('ln -s mysql/libmysqlclient_r.a')
+
+class lib_expat(Recipe):
+    SOURCE_URL = "http://downloads.sourceforge.net/project/expat/expat/2.0.1/expat-2.0.1.tar.gz"
+    SOURCE_MD5 = "ee8b492592568805593f81f8cdf2a04c"
+    CONFIGURE_ARGS = ["--enable-static", "--enable-shared"]
+
+
+class py_PIL(PyRecipe):
+    DEPENDENCIES = ["lib_jpeg","lib_zlib"]
+    SOURCE_URL = "http://effbot.org/media/downloads/PIL-1.1.7.tar.gz"
+
+
+class py_mysql_python(PyRecipe):
+    DEPENDENCIES = ["lib_mysql","py_setuptools"]
+    SOURCE_URL = "http://downloads.sourceforge.net/project/mysql-python/mysql-python/1.2.3/MySQL-python-1.2.3.tar.gz"
+    def install(self,relpath="",args=[],env={}):
+        workdir = self._get_builddir()
+        # link statically with libmysqlclient_r.so
+        cmd_conf = [self.target.PYTHON_EXECUTABLE,"setup.py","setopt","-c","options","-o","static","-s","True","-f","site.cfg"]
+        cmd_conf2 = [self.target.PYTHON_EXECUTABLE,"setup.py","setopt","-c","options","-o","mysql_config","-s", os.path.join(self.target.PREFIX,'bin','mysql_config'),"-f","site.cfg"]
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install_lib"]
+        cmd.extend(args)
+        with cd(os.path.join(workdir,relpath)):
+            self.target.do(*cmd_conf,env=env)
+            self.target.do(*cmd_conf2,env=env)
+            self.target.do(*cmd,env=env)
+
+
+class py_psycopg2(PyRecipe):
+    DEPENDENCIES = ["lib_postgresql","py_setuptools"]
+    SOURCE_URL = "http://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.3.2.tar.gz"
+    SOURCE_MD5 = "0104a756683138c644019c37744fe091"
+    SETUP_CFG = """[build_ext]
+define=PSYCOPG_EXTENSIONS,PSYCOPG_NEW_BOOLEAN,HAVE_PQFREEMEM
+
+# Set to 1 to use Python datatime objects for default date/time representation.
+use_pydatetime=1
+
+# For Windows only:
+# Set to 1 if the PostgreSQL library was built with OpenSSL.
+# Required to link in OpenSSL libraries and dependencies.
+have_ssl=0
+
+# Statically link against the postgresql client library.
+static_libpq=1
+
+pg_config=%s/bin/pg_config
+
+libraries=ssl
+"""
+    def install(self,relpath="",args=[],env={}):
+        workdir = self._get_builddir()
+        # link statically with libpg.so
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install_lib"]
+        cmd.extend(args)
+        with cd(os.path.join(workdir,relpath)):
+            f = open('setup.cfg', 'w')
+           f.write(self.SETUP_CFG % self.target.PREFIX)
+           f.close()
+            self.target.do(*cmd,env=env)
+
+
+class py_pyxml(PyRecipe):
+    DEPENDENCIES = ["lib_expat","py_setuptools"]
+    SOURCE_URL = "http://sourceforge.net/projects/pyxml/files/pyxml/0.8.4/PyXML-0.8.4.tar.gz"
+
+
+
+class py_m2crypto(PyRecipe):
+    DEPENDENCIES = ["py_setuptools"]
+    SOURCE_URL = "http://pypi.python.org/packages/source/M/M2Crypto/M2Crypto-0.21.1.tar.gz"
+    SOURCE_MD5 = "f93d8462ff7646397a9f77a2fe602d17"
+    def build(self,relpath="",args=[],env={}):
+        super(py_m2crypto,self).build()
+        workdir = self._get_builddir()
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","build","build_ext",
+            "--openssl=%s" % self.target.PREFIX]
+        cmd.extend(args)
+        with cd(os.path.join(workdir,relpath)):
+            self.target.do(*cmd,env=env)
+    def install(self,relpath="",args=[],env={}):
+        workdir = self._get_builddir()
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install_lib"]
+        cmd.extend(args)
+        with cd(os.path.join(workdir,relpath)):
+            self.target.do(*cmd,env=env)
 

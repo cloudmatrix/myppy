@@ -138,6 +138,7 @@ class apbuild_base(Recipe):
                     self.target.do("bash",os.path.join(updir,"install"),"--prefix",self.PREFIX,"--silent")
             except subprocess.CalledProcessError:
                 pass
+        os.mkdir(os.path.join(self.PREFIX,"lib"))
         open(os.path.join(self.PREFIX,"lib","apbuild-base--installed.txt"),"wb").close()
 
 
@@ -361,7 +362,7 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
     def LDFLAGS(self):
         flags = super(lib_shiboken,self).LDFLAGS
         libdir = os.path.join(lib_qt4(self.target).INSTALL_PREFIX,"lib")
-        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
+        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
         return flags
     def _patch(self):
         super(lib_shiboken,self)._patch()
@@ -509,7 +510,7 @@ class lib_apiextractor(base.lib_apiextractor,CMakeRecipe):
     def LDFLAGS(self):
         flags = super(lib_apiextractor,self).LDFLAGS
         libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
-        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
+        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
         return flags
 
 class lib_generatorrunner(base.lib_generatorrunner,CMakeRecipe):
@@ -517,7 +518,7 @@ class lib_generatorrunner(base.lib_generatorrunner,CMakeRecipe):
     def LDFLAGS(self):
         flags = super(lib_generatorrunner,self).LDFLAGS
         libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
-        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
+        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
         return flags
 
 class py_pyside(base.py_pyside,PyCMakeRecipe):
@@ -525,7 +526,7 @@ class py_pyside(base.py_pyside,PyCMakeRecipe):
     def LDFLAGS(self):
         flags = super(py_pyside,self).LDFLAGS
         if "-static" in lib_qt4(self.target).CONFIGURE_ARGS:
-            flags = " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng14 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " + flags
+            flags = " -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " + flags
         return flags
 
 
@@ -546,4 +547,7 @@ class py_pypy(base.py_pypy,Recipe):
             for ln in lines:
                 yield ln
         self._patch_build_file("pypy/translator/c/src/debug_print.h",dont_use_setaffinity)
+
+
+
 

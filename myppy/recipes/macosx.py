@@ -446,7 +446,7 @@ class py_py2app(PyRecipe):
                 self.target.do("patch",stdin=fin)
 
 
-class py_PIL(PyRecipe):
+class py_PIL(base.py_PIL,PyRecipe):
     SOURCE_URL = "http://effbot.org/media/downloads/PIL-1.1.7.tar.gz"
     def _patch(self):
         super(py_PIL,self)._patch()
