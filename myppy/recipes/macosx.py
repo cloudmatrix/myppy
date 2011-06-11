@@ -466,6 +466,7 @@ class py_PIL(base.py_PIL,PyRecipe):
 
 class py_pypy(base.py_pypy,Recipe):
     def _patch(self):
+        super(py_pypy,self)._patch()
         def dont_use_WCOREDUMP(lines):
             for ln in lines:
                 if ln.strip() == "if hasattr(os, 'WCOREDUMP'):":

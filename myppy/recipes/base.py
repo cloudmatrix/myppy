@@ -686,12 +686,22 @@ class py_pypy(Recipe):
         self._patch()
     def install(self):
         workdir = self._get_builddir()
-        shutil.copytree(os.path.join(workdir,"py"),
-                        os.path.join(self.target.SITE_PACKAGES,"py"))
-        shutil.copytree(os.path.join(workdir,"lib-python"),
-                        os.path.join(self.target.SITE_PACKAGES,"lib-python"))
-        shutil.copytree(os.path.join(workdir,"pypy"),
-                        os.path.join(self.target.SITE_PACKAGES,"pypy"))
+        for dirnm in ("py","lib-python","pypy",):
+            srcpath = os.path.join(workdir,dirnm)
+            dstpath = os.path.join(self.target.SITE_PACKAGES,dirnm)
+            if os.path.isdir(dstpath):
+                shutil.rmtree(dstpath)
+            shutil.copytree(srcpath,dstpath)
+    def _patch(self):
+        super(py_pypy,self)._patch()
+        def make_readtimestamp_static(lines):
+            for ln in lines:
+              if ln.strip().startswith("static long long pypy_read_timestamp"):
+                 yield ln.replace("static long long","long long")
+              else:
+                  yield ln
+        self._patch_build_file("pypy/translator/c/src/debug_print.c",make_readtimestamp_static)
+
 
 
 
