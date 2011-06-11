@@ -48,12 +48,12 @@ class Recipe(base.Recipe):
     @property
     def CFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
+        return "-DNDEBUG -Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CXXFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
+        return "-DNDEBUG -Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CONFIGURE_VARS(self):

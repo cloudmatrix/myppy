@@ -789,8 +789,8 @@ libraries=ssl
         cmd.extend(args)
         with cd(os.path.join(workdir,relpath)):
             f = open('setup.cfg', 'w')
-           f.write(self.SETUP_CFG % self.target.PREFIX)
-           f.close()
+            f.write(self.SETUP_CFG % self.target.PREFIX)
+            f.close()
             self.target.do(*cmd,env=env)
 
 

@@ -28,12 +28,12 @@ class Recipe(base.Recipe):
     @property
     def CFLAGS(self):
         incdir = os.path.join(self.PREFIX,"include")
-        return "-Os -D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
+        return "-Os -D_GNU_SOURCE -DNDEBUG -I%s -static-libgcc" % (incdir,)
 
     @property
     def CXXFLAGS(self):
         incdir = os.path.join(self.PREFIX,"include")
-        return "-Os -D_GNU_SOURCE -I%s -static-libgcc" % (incdir,)
+        return "-Os -D_GNU_SOURCE -DNDEBUG-I%s -static-libgcc" % (incdir,)
 
     @property
     def LD_LIBRARY_PATH(self):
@@ -138,7 +138,8 @@ class apbuild_base(Recipe):
                     self.target.do("bash",os.path.join(updir,"install"),"--prefix",self.PREFIX,"--silent")
             except subprocess.CalledProcessError:
                 pass
-        os.mkdir(os.path.join(self.PREFIX,"lib"))
+        if not os.path.isdir(os.path.join(self.PREFIX,"lib")):
+            os.mkdir(os.path.join(self.PREFIX,"lib"))
         open(os.path.join(self.PREFIX,"lib","apbuild-base--installed.txt"),"wb").close()
 
 
