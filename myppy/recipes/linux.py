@@ -534,20 +534,10 @@ class py_pyside(base.py_pyside,PyCMakeRecipe):
 class py_pypy(base.py_pypy,Recipe):
     def _patch(self):
         def dont_use_setaffinity(lines):
-            for ln in lines:
-                if ln.strip() == "# include <sched.h>":
-                    while ln.strip() != "#else":
-                        ln = lines.next()
-                    ln = lines.next()
-                    yield ln
-                    yield "#else\n"
-                    yield ln
-                    break
-                else: 
-                    yield ln
-            for ln in lines:
-                yield ln
-        self._patch_build_file("pypy/translator/c/src/debug_print.h",dont_use_setaffinity)
+            #  Completely replace the file.
+            yield "void pypy_setup_profiling() { }\n"
+            yield "void pypy_teardown_profiling() { }\n"
+        self._patch_build_file("pypy/translator/c/src/profiling.c",dont_use_setaffinity)
 
 
 
