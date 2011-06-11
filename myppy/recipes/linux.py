@@ -33,7 +33,7 @@ class Recipe(base.Recipe):
     @property
     def CXXFLAGS(self):
         incdir = os.path.join(self.PREFIX,"include")
-        return "-Os -D_GNU_SOURCE -DNDEBUG-I%s -static-libgcc" % (incdir,)
+        return "-Os -D_GNU_SOURCE -DNDEBUG -I%s -static-libgcc" % (incdir,)
 
     @property
     def LD_LIBRARY_PATH(self):

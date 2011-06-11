@@ -679,8 +679,8 @@ class py_pyside_tools(CMakeRecipe):
 
 
 class py_pypy(Recipe):
-    SOURCE_URL = "http://pypy.org/download/pypy-1.4.1-src.tar.bz2"
-    SOURCE_MD5 = "ebbbb156b1eb842e9e65d909ed5f9f6d"
+    SOURCE_URL = "http://pypy.org/download/pypy-1.5-src.tar.bz2"
+    SOURCE_MD5 = "cb9ada2c50666318c3a2863da1fbe487"
     def build(self):
         self._unpack()
         self._patch()
