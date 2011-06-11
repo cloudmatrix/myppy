@@ -474,6 +474,11 @@ class py_pypy(base.py_pypy,Recipe):
                 else:
                     yield ln
         self._patch_build_file("pypy/rpython/module/ll_os.py",dont_use_WCOREDUMP)
+        def dont_duplicate_defns(lines):
+            yield "#define PYPY_NOT_MAIN_FILE"
+            for ln in lines:
+                  yield ln
+        self._patch_build_file("pypy/translator/c/src/debug_print.c",dont_duplicate_defns)
 
 
 
