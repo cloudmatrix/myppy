@@ -25,7 +25,7 @@ class MyppyEnv(base.MyppyEnv):
         self._add_env_path("PKG_CONFIG_PATH",os.path.join(self.PREFIX,
                                                           "lib/pkgconfig"))
 
-    _RECIPES_WITH_APGCC_PROBLEMS = ("apbuild_base","apbuild",
+    _RECIPES_WITH_APGCC_PROBLEMS = ("apbuild_base","apbuild", "bin_lsbsdk",
                                     "lib_apiextractor",)
     def record_files(self,recipe,files):
         for fpath in files:
@@ -52,22 +52,20 @@ class MyppyEnv(base.MyppyEnv):
 
     def _check_glibc_symbols(self,fpath):
         print "VERIFYING GLIBC SYMBOLS", fpath
+        errors = []
         for ln in self.bt("objdump","-T",fpath).split("\n"):
             for field in ln.split():
                 if field.startswith("GLIBC_"):
                     ver = field.split("_",1)[1].split(".")
                     ver = map(int,ver)
                     if ver >= [2,4,]:
-                        err = "new glibc symbols in " + fpath
-                        err += "\n" + ln.strip()
-                        assert False, err
+                        errors.append(ln.strip())
                 elif field.startswith("GLIBCXX_"):
                     ver = field.split("_",1)[1].split(".")
                     ver = map(int,ver)
-                    if ver > [3,4,]:
-                        err = "new glibcxx symbols in " + fpath
-                        err += "\n" + ln.strip()
-                        assert False, err
+                    if ver > [3,4,7]:
+                        errors.append(ln.strip())
+        assert not errors, "\n".join(errors)
 
     def _adjust_rpath(self,fpath):
         #  patchelf might not be installed if we're just initialising the env.

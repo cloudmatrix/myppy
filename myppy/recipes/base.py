@@ -391,7 +391,7 @@ class lib_readline(Recipe):
 class lib_zlib(Recipe):
     SOURCE_URL = "http://zlib.net/zlib-1.2.6.tar.gz"
     SOURCE_MD5 = "618e944d7c7cd6521551e30b32322f4a"
-    CONFIGURE_ARGS = ("--static", "--solo",)
+    CONFIGURE_ARGS = ("--static",)
     CONFIGURE_VARS = None
     def _configure(self):
         super(lib_zlib,self)._configure()
@@ -403,7 +403,7 @@ class lib_zlib(Recipe):
 
 
 class lib_png(Recipe):
-    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng15/1.5.1/libpng-1.5.1.tar.gz"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng15/1.5.9/libpng-1.5.9.tar.gz"
 
 
 class lib_jpeg(Recipe):

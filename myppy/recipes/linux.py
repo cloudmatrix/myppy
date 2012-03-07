@@ -324,6 +324,36 @@ class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
     CONFIGURE_ARGS.extend(base.lib_wxwidgets_base.CONFIGURE_ARGS)
 
 
+class bin_rpm2cpio(Recipe):
+    SOURCE_URL = "http://www.iagora.com/~espel/rpm2cpio"
+    def build(self):
+        pass
+    def install(self):
+        src = self.target.fetch(self.SOURCE_URL)
+        dst = os.path.join(self.INSTALL_PREFIX, "bin", "rpm2cpio")
+        os.rename(src,dst)
+        mod = os.stat(dst).st_mode
+        mod |= stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+        os.chmod(dst,mod)
+
+
+class bin_lsbsdk(Recipe):
+    DEPENDENCIES = ["bin_rpm2cpio"]
+    SOURCE_URL = "http://ftp.linuxfoundation.org/pub/lsb/bundles/released-4.1.0/sdk/lsb-sdk-4.1.2-1.ia32.tar.gz"
+    def build(self):
+        pass
+    def install(self):
+        updir = self._unpack()
+        for nm in os.listdir(updir):
+            if nm.endswith(".rpm"):
+                fpath = os.path.join(updir, nm)
+                with open(fpath+".cpio", "w+") as stdout:
+                    self.target.do("rpm2cpio", fpath, stdout=stdout)
+                    stdout.seek(0)
+                    with cd(self.INSTALL_PREFIX):
+                        self.target.do("cpio", "-duvi", stdin=stdout)
+
+
 class lib_sparsehash(Recipe):
     """Google sparehash, using old C++ hash function APIs.
 
@@ -354,6 +384,12 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
     #  Use a private build of google sparsehash, so we don't pull
     #  in symbols from C++ TR1 hashtable spec.
     DEPENDENCIES = ["lib_sparsehash"]
+    @property
+    def LDFLAGS(self):
+        flags = super(lib_shiboken,self).LDFLAGS
+        lsblibdir = os.path.join(self.PREFIX,"opt","lsb","lib")
+        flags += " -L%s" % (lsblibdir,)
+        return flags
     @property
     def CXXFLAGS(self):
         flags = super(lib_shiboken,self).CXXFLAGS
