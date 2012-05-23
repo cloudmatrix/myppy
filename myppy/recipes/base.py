@@ -389,8 +389,8 @@ class lib_readline(Recipe):
 
 
 class lib_zlib(Recipe):
-    SOURCE_URL = "http://zlib.net/zlib-1.2.6.tar.gz"
-    SOURCE_MD5 = "618e944d7c7cd6521551e30b32322f4a"
+    SOURCE_URL = "http://zlib.net/zlib-1.2.7.tar.gz"
+    SOURCE_MD5 = "60df6a37c56e7c1366cca812414f7b85"
     CONFIGURE_ARGS = ("--static",)
     CONFIGURE_VARS = None
     def _configure(self):
