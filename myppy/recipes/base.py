@@ -207,6 +207,21 @@ class PyRecipe(Recipe):
         self._generic_pyinstall()
 
 
+class PipPyRecipe(PyRecipe):
+    """
+    Some Python modules with C-extensions require adjusting RPATH for so files.
+    """
+    DEPENDENCIES = ["py_pip","py_setuptools"]
+    PYPI_PKG = ""
+    def fetch(self):
+        pass
+    def build(self):
+        pass
+    def install(self):
+        self.target.do("env")
+        self.target.do("pip","install",self.PYPI_PKG)
+
+
 class CMakeRecipe(Recipe):
     BUILD_DEPENDENCIES = ["cmake"]
     def _configure(self):
