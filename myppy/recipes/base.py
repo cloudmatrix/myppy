@@ -829,3 +829,39 @@ class py_m2crypto(PyRecipe):
         with cd(os.path.join(workdir,relpath)):
             self.target.do(*cmd,env=env)
 
+
+class py_p4python121(PyRecipe):
+    # Install Perforce python bindings
+    # This module needs GCC 3.4 to work on older machines and to pass
+    # glibc symbol verification
+    DEPENDENCIES = ["py_setuptools"]
+    SOURCE_URL = "ftp://ftp.perforce.com/perforce/r12.1/bin.tools/p4python.tgz"
+    P4API_URL = "ftp://ftp.perforce.com/perforce/r12.1/bin.linux26x86/p4api.tgz"
+
+    def fetch(self):
+        pass
+
+    def build(self):
+        # fetch and upnpack source
+        src = self.target.fetch(self.SOURCE_URL)
+        self._unpack_tarball(src,self.target.builddir)
+        self.workdir = os.path.join(self.target.builddir, 'p4python-2012.1.442152')
+        # fetch P4API
+        src = self.target.fetch(self.P4API_URL)
+        self._unpack_tarball(src,self.workdir)
+        p4api_dir = os.path.join(self.workdir, 'p4api-2012.1.442152')
+
+        # Generate the setup.cfg file.
+        with cd(self.workdir):
+            f = open("setup.cfg", "w")
+            f.write("[p4python_config]\n")
+            f.write("p4_api=%s" % p4api_dir)
+            f.close()
+
+    def install(self):
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install"]
+        with cd(self.workdir):
+            self.target.do(*cmd)
+
+
+
