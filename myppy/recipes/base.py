@@ -764,6 +764,15 @@ class lib_expat(Recipe):
     CONFIGURE_ARGS = ["--enable-static", "--enable-shared"]
 
 
+class lib_openldap(Recipe):
+    SOURCE_URL = "ftp://ftp.openldap.org/pub/OpenLDAP/openldap-release/openldap-2.4.31.tgz"
+    SOURCE_MD5 = "804c6cb5698db30b75ad0ff1c25baefd"
+    CONFIGURE_ARGS = [
+        '--disable-slapd', # Disable server libraries.
+        '--disable-static',
+    ]
+
+
 class py_PIL(PyRecipe):
     DEPENDENCIES = ["lib_jpeg","lib_zlib"]
     SOURCE_URL = "http://effbot.org/media/downloads/PIL-1.1.7.tar.gz"
@@ -905,4 +914,11 @@ class py_gevent10(PyRecipe):
             self.target.do(*cmd,env=env)
 
 
+class py_greenlet(PipPyRecipe):
+    PYPI_PKG = "greenlet"
 
+
+class py_ldap(PipPyRecipe):
+    DEPENDENCIES = ['lib_openldap']
+    # Version 2.4.6 compiles correctly. Newer need some customization.
+    PYPI_PKG = "python-ldap==2.4.6"
