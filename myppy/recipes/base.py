@@ -707,8 +707,8 @@ class py_pypy(Recipe):
 
 class lib_postgresql(Recipe):
     DEPENDENCIES = ["lib_openssl", "lib_zlib"]
-    SOURCE_URL = "ftp://ftp.postgresql.org/pub/source/v9.0.2/postgresql-9.0.2.tar.gz"
-    SOURCE_MD5 = "30e87e704e75c2c5b141182b0a37bbf0"
+    SOURCE_URL = "ftp://ftp.postgresql.org/pub/source/v9.1.4/postgresql-9.1.4.tar.gz"
+    SOURCE_MD5 = "07c5e02e0b5e9b4c82a6d40443a3102f"
     @property
     def CONFIGURE_ARGS(self):
         return ("--disable-shared","--enable-depend","--without-tcl","--without-perl",
@@ -720,8 +720,8 @@ class lib_postgresql(Recipe):
 
 class lib_mysql(Recipe):
     DEPENDENCIES = ["lib_openssl", "lib_zlib"]
-    SOURCE_URL = "http://downloads.mysql.com/archives/mysql-5.0/mysql-5.0.91.tar.gz"
-    SOURCE_MD5 = "e28f93b1a1b10b028135c1d51bbd4c46"
+    SOURCE_URL = "http://downloads.mysql.com/archives/mysql-5.1/mysql-5.1.62.tar.gz"
+    SOURCE_MD5 = "58843ac04d3e8bb6ff973938e7e88a28"
     # libmysql is statically linked
     @property
     def CONFIGURE_ARGS(self):
@@ -732,12 +732,12 @@ class lib_mysql(Recipe):
             "--without-debug", "--with-charset=utf8", "--with-collation=utf8_general_ci",
             "--without-embedded-privilege-control", "--without-embedded-server",
             "--without-bench", "--enable-assembler", "--without-isam", "--without-innodb",
-            "--without-extra-tools", "--with-openssl=%s" % self.target.PREFIX,
+            "--without-extra-tools", "--with-ssl=%s" % self.target.PREFIX,
             "--without-berkeley-db", "--with-geometry", "--disable-profiling",
             "--with-zlib-dir=%s"%self.target.PREFIX)
 
     def install(self):
-        self._generic_makeinstall()
+        self._generic_make(target='install')
         # create symlinks in lib folder
         with cd(os.path.join(self.target.PREFIX,'lib')):
             os.system('ln -s mysql/libmysqlclient.a')
@@ -772,8 +772,8 @@ class py_mysql_python(PyRecipe):
 
 class py_psycopg2(PyRecipe):
     DEPENDENCIES = ["lib_postgresql","py_setuptools"]
-    SOURCE_URL = "http://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.3.2.tar.gz"
-    SOURCE_MD5 = "0104a756683138c644019c37744fe091"
+    SOURCE_URL = "http://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.4.5.tar.gz"
+    SOURCE_MD5 = "075e4df465e9a863f288d5bdf6e6887e"
     SETUP_CFG = """[build_ext]
 define=PSYCOPG_EXTENSIONS,PSYCOPG_NEW_BOOLEAN,HAVE_PQFREEMEM
 
