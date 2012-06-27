@@ -864,4 +864,16 @@ class py_p4python121(PyRecipe):
             self.target.do(*cmd)
 
 
+class py_simplejson26(PyRecipe):
+    DEPENDENCIES = ["py_setuptools"]
+    SOURCE_URL = "http://pypi.python.org/packages/source/s/simplejson/simplejson-2.6.0.tar.gz"
+    SOURCE_MD5 = "43b43b22f190a999c79a2af0c504e3a6"
+    def install(self,relpath="",args=[],env={}):
+        workdir = self._get_builddir()
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install_lib"]
+        cmd.extend(args)
+        with cd(os.path.join(workdir,relpath)):
+            self.target.do(*cmd,env=env)
+
+
 
