@@ -726,7 +726,7 @@ class lib_postgresql(Recipe):
     SOURCE_MD5 = "07c5e02e0b5e9b4c82a6d40443a3102f"
     @property
     def CONFIGURE_ARGS(self):
-        return ("--disable-shared","--enable-depend","--without-tcl","--without-perl",
+        return ("--enable-shared","--enable-depend","--without-tcl","--without-perl",
             "--without-python","--without-readline","--without-krb5","--without-gssapi",
             "--disable-nls","--without-pam","--enable-integer-datetimes","--with-openssl",
             "--enable-thread-safety","--with-zlib","--without-ldap", "--disable-debug",
