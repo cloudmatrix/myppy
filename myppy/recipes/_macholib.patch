@@ -1,164 +1,7 @@
-diff -rauN macholib-1.3/macholib/MachOStandalone.py patched-macholib/MachOStandalone.py
---- macholib-1.3/macholib/MachOStandalone.py	2010-07-15 06:33:13.000000000 +1000
-+++ patched-macholib/MachOStandalone.py	2010-12-01 16:47:31.000000000 +1100
-@@ -5,6 +5,7 @@
- 
- from altgraph.compat import *
- 
-+from macholib.MachO import MachO
- from macholib.MachOGraph import MachOGraph, MissingMachO
- from macholib.util import iter_platform_files, in_system_path, mergecopy, \
-     mergetree, flipwritable, has_filename_filter
-@@ -23,11 +24,11 @@
-         res = super(FilteredMachOGraph, self).createNode(cls, name)
-         return res
- 
--    def locate(self, filename):
--        newname = super(FilteredMachOGraph, self).locate(filename)
-+    def locate(self, filename, loader_path=None):
-+        newname = super(FilteredMachOGraph, self).locate(filename, loader_path)
-         if newname is None:
-             return None
--        return self.delegate.locate(newname)
-+        return self.delegate.locate(newname, loader_path)
- 
- class MachOStandalone(object):
-     def __init__(self, base, dest=None, graph=None, env=None,
-@@ -50,7 +51,7 @@
-                 return ExcludedMachO
-         return cls
- 
--    def locate(self, filename):
-+    def locate(self, filename, loader_path=None):
-         if in_system_path(filename):
-             return filename
-         if filename.startswith(self.base):
-@@ -74,6 +75,7 @@
-         dest = os.path.join(self.dest, os.path.basename(filename))
-         if not os.path.exists(dest):
-             self.mergecopy(filename, dest)
-+            rewrite_loader_path(dest,filename)
-         return dest
- 
-     def mergecopy(self, src, dest):
-@@ -116,15 +118,14 @@
-             dest = os.path.join(contents, node.filename[len(skipcontents):])
-             changemap[node.filename] = dest
- 
--        def changefunc(path):
--            res = mm.locate(path)
--            return changemap.get(res)
--
-         for node in machfiles:
-             fn = mm.locate(node.filename)
-             if fn is None:
-                 continue
-             rewroteAny = False
-+            def changefunc(path):
-+                res = mm.locate(path, loader_path=node.filename)
-+                return changemap.get(res)
-             for header in node.headers:
-                 if node.rewriteLoadCommands(changefunc):
-                     rewroteAny = True
-@@ -143,3 +144,32 @@
- 
-         allfiles = [mm.locate(node.filename) for node in machfiles]
-         return set(filter(None, allfiles))
-+
-+
-+def rewrite_loader_path(newname,oldname):
-+    """Rewrite @loader_path linkages to use absolute paths."""
-+    node = MachO(newname)
-+    def changefunc(name):
-+        if not name.startswith("@loader_path/"):
-+            return None
-+        relpath = name[len("@loader_path/"):]
-+        abspath = os.path.join(os.path.dirname(oldname),relpath)
-+        return os.path.normpath(abspath)
-+    rewroteAny = False
-+    for header in node.headers:
-+        if node.rewriteLoadCommands(changefunc):
-+            rewroteAny = True
-+    if rewroteAny:
-+        old_mode = flipwritable(newname)
-+        try:
-+            f = open(newname, 'rb+')
-+            for header in node.headers:
-+                f.seek(0)
-+                node.write(f)
-+            f.seek(0, 2)
-+            f.flush()
-+            f.close()
-+        finally:
-+            flipwritable(newname, old_mode)
-+    return rewroteAny
-+
-diff -rauN macholib-1.3/macholib/dyld.py patched-macholib/dyld.py
---- macholib-1.3/macholib/dyld.py	2010-07-13 23:17:51.000000000 +1000
-+++ patched-macholib/dyld.py	2010-12-01 16:47:31.000000000 +1100
-@@ -105,6 +105,13 @@
-     if name.startswith('@executable_path/') and executable_path is not None:
-         yield os.path.join(executable_path, name[len('@executable_path/'):])
- 
-+def dyld_loader_path_search(name, loader_path=None):
-+    # If we haven't done any searching and found a library and the
-+    # dylib_name starts with "@loader_path/" then construct the
-+    # library name.
-+    if name.startswith('@loader_path/') and loader_path is not None:
-+        yield os.path.join(loader_path, name[len('@loader_path/'):])
-+
- def dyld_default_search(name, env=None):
-     yield name
- 
-@@ -127,22 +134,24 @@
-         for path in DEFAULT_LIBRARY_FALLBACK:
-             yield os.path.join(path, os.path.basename(name))
- 
--def dyld_find(name, executable_path=None, env=None):
-+def dyld_find(name, executable_path=None, env=None, loader_path=None):
-     """
-     Find a library or framework using dyld semantics
-     """
-     name = ensure_utf8(name)
-     executable_path = ensure_utf8(executable_path)
-+    loader_path = ensure_utf8(loader_path)
-     for path in dyld_image_suffix_search(chain(
-                 dyld_override_search(name, env),
-                 dyld_executable_path_search(name, executable_path),
-+                dyld_loader_path_search(name, loader_path),
-                 dyld_default_search(name, env),
-             ), env):
-         if os.path.isfile(path):
-             return path
-     raise ValueError, "dylib %s could not be found" % (name,)
- 
--def framework_find(fn, executable_path=None, env=None):
-+def framework_find(fn, executable_path=None, env=None, loader_path=None):
-     """
-     Find a framework using dyld semantics in a very loose manner.
- 
-@@ -152,7 +161,7 @@
-         Python.framework/Versions/Current
-     """
-     try:
--        return dyld_find(fn, executable_path=executable_path, env=env)
-+        return dyld_find(fn, executable_path=executable_path, env=env, loader_path=loader_path)
-     except ValueError, e:
-         pass
-     fmwk_index = fn.rfind('.framework')
-@@ -161,7 +170,7 @@
-         fn += '.framework'
-     fn = os.path.join(fn, os.path.basename(fn[:fmwk_index]))
-     try:
--        return dyld_find(fn, executable_path=executable_path, env=env)
-+        return dyld_find(fn, executable_path=executable_path, env=env, loader_path=loader_path)
-     except ValueError:
-         raise e
- 
-diff -rauN macholib-1.3/macholib/MachOGraph.py patched-macholib/MachOGraph.py
---- macholib-1.3/macholib/MachOGraph.py	2010-07-13 23:12:39.000000000 +1000
-+++ patched-macholib/MachOGraph.py	2010-12-01 22:15:13.000000000 +1100
-@@ -37,32 +37,37 @@
+diff -rauN macholib-1.5/macholib/MachOGraph.py patched-macholib-1.5/macholib/MachOGraph.py
+--- macholib-1.5/macholib/MachOGraph.py	2012-07-17 00:57:06.000000000 +1000
++++ patched-macholib-1.5/macholib/MachOGraph.py	2012-12-03 22:27:41.000000000 +1100
+@@ -38,32 +38,37 @@
          self.trans_table = {}
          self.executable_path = executable_path
  
@@ -202,7 +45,7 @@ diff -rauN macholib-1.3/macholib/MachOGraph.py patched-macholib/MachOGraph.py
          if m is None:
              if not os.path.exists(pathname):
                  raise ValueError('%r does not exist' % (pathname,))
-@@ -75,9 +80,13 @@
+@@ -76,9 +81,13 @@
      def load_file(self, name, caller=None):
          assert isinstance(name, (str, unicode))
          self.msgin(2, "load_file", name)
@@ -218,3 +61,175 @@ diff -rauN macholib-1.3/macholib/MachOGraph.py patched-macholib/MachOGraph.py
              if newname is not None and newname != name:
                  return self.load_file(newname, caller=caller)
              if os.path.exists(name):
+diff -rauN macholib-1.5/macholib/MachOStandalone.py patched-macholib-1.5/macholib/MachOStandalone.py
+--- macholib-1.5/macholib/MachOStandalone.py	2012-10-17 23:30:20.000000000 +1100
++++ patched-macholib-1.5/macholib/MachOStandalone.py	2012-12-03 22:27:41.000000000 +1100
+@@ -1,5 +1,6 @@
+ import os
+ 
++from macholib.MachO import MachO
+ from macholib.MachOGraph import MachOGraph, MissingMachO
+ from macholib.util import iter_platform_files, in_system_path, mergecopy, \
+     mergetree, flipwritable, has_filename_filter
+@@ -19,11 +20,11 @@
+         res = super(FilteredMachOGraph, self).createNode(cls, name)
+         return res
+ 
+-    def locate(self, filename):
+-        newname = super(FilteredMachOGraph, self).locate(filename)
++    def locate(self, filename, loader_path=None):
++        newname = super(FilteredMachOGraph, self).locate(filename, loader_path)
+         if newname is None:
+             return None
+-        return self.delegate.locate(newname)
++        return self.delegate.locate(newname, loader_path)
+ 
+ class MachOStandalone(object):
+     def __init__(self, base, dest=None, graph=None, env=None,
+@@ -46,7 +47,7 @@
+                 return ExcludedMachO
+         return cls
+ 
+-    def locate(self, filename):
++    def locate(self, filename, loader_path=None):
+         if in_system_path(filename):
+             return filename
+         if filename.startswith(self.base):
+@@ -58,7 +59,7 @@
+             return self.changemap[filename]
+         info = framework_info(filename)
+         if info is None:
+-            res = self.copy_dylib(filename)
++            res = self.copy_dylib(filename, loader_path)
+             self.changemap[filename] = res
+             return res
+         else:
+@@ -66,7 +67,7 @@
+             self.changemap[filename] = res
+             return res
+ 
+-    def copy_dylib(self, filename):
++    def copy_dylib(self, filename, loader_path=None):
+         # When the filename is a symlink use the basename of the target of the link
+         # as the name in standalone bundle. This avoids problems when two libraries
+         # link to the same dylib but using different symlinks.
+@@ -77,6 +78,7 @@
+ 
+         if not os.path.exists(dest):
+             self.mergecopy(filename, dest)
++            rewrite_loader_path(dest, filename)
+         return dest
+ 
+     def mergecopy(self, src, dest):
+@@ -119,15 +121,14 @@
+             dest = os.path.join(contents, node.filename[len(skipcontents):])
+             changemap[node.filename] = dest
+ 
+-        def changefunc(path):
+-            res = mm.locate(path)
+-            return changemap.get(res)
+-
+         for node in machfiles:
+             fn = mm.locate(node.filename)
+             if fn is None:
+                 continue
+             rewroteAny = False
++            def changefunc(path):
++                res = mm.locate(path, loader_path=node.filename)
++                return changemap.get(res)
+             for header in node.headers:
+                 if node.rewriteLoadCommands(changefunc):
+                     rewroteAny = True
+@@ -145,3 +146,31 @@
+ 
+         allfiles = [mm.locate(node.filename) for node in machfiles]
+         return set(filter(None, allfiles))
++
++
++def rewrite_loader_path(newname,oldname):
++    """Rewrite @loader_path linkages to use absolute paths."""
++    node = MachO(newname)
++    def changefunc(name):
++        if not name.startswith("@loader_path/"):
++            return None
++        relpath = name[len("@loader_path/"):]
++        abspath = os.path.join(os.path.dirname(oldname),relpath)
++        return os.path.normpath(abspath)
++    rewroteAny = False
++    for header in node.headers:
++        if node.rewriteLoadCommands(changefunc):
++            rewroteAny = True
++    if rewroteAny:
++        old_mode = flipwritable(newname)
++        try:
++            f = open(newname, 'rb+')
++            for header in node.headers:
++                f.seek(0)
++                node.write(f)
++            f.seek(0, 2)
++            f.flush()
++            f.close()
++        finally:
++            flipwritable(newname, old_mode)
++    return rewroteAny
+diff -rauN macholib-1.5/macholib/dyld.py patched-macholib-1.5/macholib/dyld.py
+--- macholib-1.5/macholib/dyld.py	2012-05-04 07:16:59.000000000 +1000
++++ patched-macholib-1.5/macholib/dyld.py	2012-12-03 22:27:41.000000000 +1100
+@@ -107,6 +107,15 @@
+     if name.startswith('@executable_path/') and executable_path is not None:
+         yield os.path.join(executable_path, name[len('@executable_path/'):])
+ 
++
++def dyld_loader_path_search(name, loader_path=None):
++    # If we haven't done any searching and found a library and the
++    # dylib_name starts with "@loader_path/" then construct the
++    # library name.
++    if name.startswith('@loader_path/') and loader_path is not None:
++        yield os.path.normpath(os.path.join(loader_path, name[len('@loader_path/'):]))
++
++
+ def dyld_default_search(name, env=None):
+     yield name
+ 
+@@ -132,22 +141,24 @@
+         for path in _DEFAULT_LIBRARY_FALLBACK:
+             yield os.path.join(path, os.path.basename(name))
+ 
+-def dyld_find(name, executable_path=None, env=None):
++def dyld_find(name, executable_path=None, env=None, loader_path=None):
+     """
+     Find a library or framework using dyld semantics
+     """
+     name = _ensure_utf8(name)
+     executable_path = _ensure_utf8(executable_path)
++    loader_path = _ensure_utf8(loader_path)
+     for path in dyld_image_suffix_search(chain(
+                 dyld_override_search(name, env),
+                 dyld_executable_path_search(name, executable_path),
++                dyld_loader_path_search(name, loader_path),
+                 dyld_default_search(name, env),
+             ), env):
+         if os.path.isfile(path):
+             return path
+     raise ValueError("dylib %s could not be found" % (name,))
+ 
+-def framework_find(fn, executable_path=None, env=None):
++def framework_find(fn, executable_path=None, env=None, loader_path=None):
+     """
+     Find a framework using dyld semantics in a very loose manner.
+ 
+@@ -157,7 +168,7 @@
+         Python.framework/Versions/Current
+     """
+     try:
+-        return dyld_find(fn, executable_path=executable_path, env=env)
++        return dyld_find(fn, executable_path=executable_path, env=env, loader_path=loader_path)
+     except ValueError:
+         pass
+     fmwk_index = fn.rfind('.framework')
+@@ -165,4 +176,4 @@
+         fmwk_index = len(fn)
+         fn += '.framework'
+     fn = os.path.join(fn, os.path.basename(fn[:fmwk_index]))
+-    return dyld_find(fn, executable_path=executable_path, env=env)
++    return dyld_find(fn, executable_path=executable_path, env=env, loader_path=loader_path)

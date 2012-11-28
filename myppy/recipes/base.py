@@ -197,7 +197,7 @@ class Recipe(object):
 
 
 class PyRecipe(Recipe):
-    DEPENDENCIES = ["python26"]
+    DEPENDENCIES = ["python27"]
     def build(self):
         """Build all of the files for this recipe."""
         self._unpack()
@@ -220,12 +220,16 @@ class CMakeRecipe(Recipe):
         cmd.append("-DCMAKE_BUILD_TYPE=MinSizeRel")
         for arg in args:
             cmd.append(arg)
-        with cd(self._get_builddir()):
+        # Do an out-of-source build, required by some recipes.
+        builddir = os.path.join(self._get_builddir(), "MYPPY-BUILD")
+        os.makedirs(builddir)
+        cmd.append("..")
+        with cd(builddir):
             self.target.do(*cmd,env=env)
 
 
 class PyCMakeRecipe(CMakeRecipe):
-    DEPENDENCIES = ["python26"]
+    DEPENDENCIES = ["python27"]
     def _configure(self):
         args = ("-DPYTHON_EXECUTABLE="+self.target.PYTHON_EXECUTABLE,
                 "-DPYTHON_INCLUDE_DIR="+self.target.PYTHON_HEADERS,
@@ -235,14 +239,14 @@ class PyCMakeRecipe(CMakeRecipe):
 
 
 class cmake(Recipe):
-    SOURCE_URL = "http://www.cmake.org/files/v2.8/cmake-2.8.4.tar.gz"
+    SOURCE_URL = "http://www.cmake.org/files/v2.8/cmake-2.8.10.tar.gz"
     CONFIGURE_VARS = None
     MAKE_VARS = ["VERBOSE=1"]
 
 
-class python26(Recipe):
+class python27(Recipe):
     DEPENDENCIES = ["lib_zlib","lib_readline","lib_sqlite3","lib_bz2"]
-    SOURCE_URL = "http://www.python.org/ftp/python/2.6.6/Python-2.6.6.tgz"
+    SOURCE_URL = "http://www.python.org/ftp/python/2.7.3/Python-2.7.3.tgz"
     CONFIGURE_ARGS = ("--enable-shared",)
     def _patch(self):
         #  Add some builtin modules:
@@ -273,7 +277,7 @@ class python26(Recipe):
         self._patch_build_file("Modules/Setup.dist",addit)
 
     def _configure(self):
-        super(python26,self)._configure()
+        super(python27,self)._configure()
         self._post_config_patch()
 
     def _post_config_patch(self):
@@ -389,8 +393,8 @@ class lib_readline(Recipe):
 
 
 class lib_zlib(Recipe):
-    SOURCE_URL = "http://zlib.net/zlib-1.2.6.tar.gz"
-    SOURCE_MD5 = "618e944d7c7cd6521551e30b32322f4a"
+    SOURCE_URL = "http://zlib.net/zlib-1.2.7.tar.gz"
+    SOURCE_MD5 = "60df6a37c56e7c1366cca812414f7b85"
     CONFIGURE_ARGS = ("--static",)
     CONFIGURE_VARS = None
     def _configure(self):
@@ -403,7 +407,7 @@ class lib_zlib(Recipe):
 
 
 class lib_png(Recipe):
-    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng15/1.5.9/libpng-1.5.9.tar.gz"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/libpng/libpng15/1.5.13/libpng-1.5.13.tar.gz"
 
 
 class lib_jpeg(Recipe):
@@ -522,13 +526,14 @@ class lib_wxwidgets(Recipe):
         open(os.path.join(self.PREFIX,"lib","wxwidgets-installed"),"wb").close()
 
 
-#  We build two builds of Qt: a full-featured one for running the various
-#  tools, and then a stripped-down one for linking into the PySide binary.
+#  We offer two builds of Qt:
+#    * a full-featured one for running various qt-related build tools
+#    * a stripped-down one that can be used at runtime but not for builds
 
 class _lib_qt4_base(Recipe):
     DEPENDENCIES = ["lib_jpeg","lib_png","lib_tiff","lib_zlib"]
-    SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.1.tar.gz"
-    SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
+    SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-everywhere-opensource-src-4.7.4.tar.gz"
+    #SOURCE_MD5 = "6f88d96507c84e9fea5bf3a71ebeb6d7"
     #SOURCE_URL = "http://get.qt.nokia.com/qt/source/qt-trunk.tar.gz"
     CONFIGURE_VARS = None
     DISABLE_FEATURES = []
@@ -554,7 +559,7 @@ class _lib_qt4_base(Recipe):
         args = []
         for feature in self.DISABLE_FEATURES:
             args.append("-no-feature-" + feature.lower())
-        args.extend(["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-system-sqlite","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-opensource","-release","-no-separate-debug-info","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.PREFIX,"include"),"-L",os.path.join(self.PREFIX,"lib")])
+        args.extend(["-no-pch","-no-cups","-no-openssl","-no-declarative","-system-libpng","-system-libjpeg","-system-libtiff","-system-zlib","-no-phonon","-no-multimedia","-no-qt3support","-no-webkit","-no-opengl","-no-javascript-jit","-no-scripttools","-no-libmng","-no-dbus","-no-svg","-no-nis","-opensource","-release","-no-separate-debug-info","-nomake","examples","-nomake","demos","-nomake","docs","-nomake","tools","-I",os.path.join(self.PREFIX,"include"),"-L",os.path.join(self.PREFIX,"lib")])
         return args
     def _unpack(self):
         # clean up the workdir after building other qt versions
@@ -581,26 +586,23 @@ class _lib_qt4_base(Recipe):
                 self._patch_file(filepath,optimize_for_size)
 
 
-class lib_qt4(_lib_qt4_base):
+class lib_qt4_small(_lib_qt4_base):
+    CONFLICTS_WITH = ["lib_qt4"]
     @property
     def CONFIGURE_ARGS(self):
-        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        args = list(super(lib_qt4_small,self).CONFIGURE_ARGS)
         args.insert(1,"-shared")
-        #args.insert(1,"-static")
         args.insert(2,"-no-exceptions")
         args.insert(3,"-no-xmlpatterns")
         return args
 
 
-class lib_qt4_full(_lib_qt4_base):
-    CONFLICTS_WITH = ["lib_qt4"]
-    @property
-    def INSTALL_PREFIX(self):
-        return os.path.join(self.target.PREFIX,"qt4-full")
+class lib_qt4(_lib_qt4_base):
+    CONFLICTS_WITH = ["lib_qt4_small"]
     @property
     def CONFIGURE_ARGS(self):
-        args = list(super(lib_qt4_full,self).CONFIGURE_ARGS)
-        args.insert(1,"-static")
+        args = list(super(lib_qt4,self).CONFIGURE_ARGS)
+        args.insert(1,"-shared")
         return args
 
 
@@ -611,39 +613,14 @@ class py_wxpython(PyRecipe):
         self._generic_pyinstall(relpath="wxPython")
 
 
-class lib_apiextractor(CMakeRecipe):
-    DEPENDENCIES = ["lib_xslt"]
-    BUILD_DEPENDENCIES = ["lib_qt4_full"]
-    CONFLICTS_WITH = []
-    SOURCE_URL = "http://www.pyside.org/files/apiextractor-0.10.0.tar.bz2"
-    
-    def _configure(self):
-        qmake = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,
-                             "bin","qmake")
-        args = ("-DQT_QMAKE_EXECUTABLE="+qmake,)
-        self._generic_cmake(args=args)
-
-
-class lib_generatorrunner(CMakeRecipe):
-    DEPENDENCIES = ["lib_apiextractor"]
-    BUILD_DEPENDENCIES = ["lib_qt4_full"]
-    SOURCE_URL = "http://www.pyside.org/files/generatorrunner-0.6.6.tar.bz2"
-    def _configure(self):
-        qmake = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,
-                             "bin","qmake")
-        args = ("-DQT_QMAKE_EXECUTABLE="+qmake,)
-        self._generic_cmake(args=args)
-
-
 class lib_shiboken(PyCMakeRecipe):
-    DEPENDENCIES = ["lib_generatorrunner"]
-    BUILD_DEPENDENCIES = ["lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/shiboken-1.0.0~rc1.tar.bz2"
+    DEPENDENCIES = ["lib_qt4", "lib_xslt"]
+    SOURCE_URL = "http://qt-project.org/uploads/pyside/shiboken-1.1.2.tar.bz2"
 
 
 class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken","lib_qt4"]
-    SOURCE_URL = "http://www.pyside.org/files/pyside-qt4.7+1.0.0~rc1.tar.bz2"
+    SOURCE_URL = "http://qt-project.org/uploads/pyside/pyside-qt4.8+1.1.2.tar.bz2"
     @property
     def CFLAGS(self):
         flags = super(py_pyside,self).CFLAGS
@@ -674,8 +651,7 @@ class py_pyside(PyCMakeRecipe):
 
 
 class py_pyside_tools(CMakeRecipe):
-    SOURCE_URL = "http://www.pyside.org/files/pyside-tools-0.2.7.tar.bz2"
-    SOURCE_MD5 = "43d31a95dfa1344095809f3176ab2cca"
+    SOURCE_URL = "http://qt-project.org/uploads/pyside/pyside-tools-0.2.14.tar.bz2"
 
 
 class py_pypy(Recipe):

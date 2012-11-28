@@ -39,7 +39,7 @@ class MyppyEnv(object):
 
     """
  
-    DEPENDENCIES = ["python26","py_pip","py_myppy"]
+    DEPENDENCIES = ["python27","py_pip","py_myppy"]
 
     DB_NAME = os.path.join("local","myppy.db")
 
@@ -97,15 +97,15 @@ class MyppyEnv(object):
 
     @property
     def PYTHON_HEADERS(self):
-        return os.path.join(self.PREFIX,"include","python2.6")
+        return os.path.join(self.PREFIX,"include","python2.7")
 
     @property
     def PYTHON_LIBRARY(self):
-        return os.path.join(self.PREFIX,"lib","libpython2.6.so")
+        return os.path.join(self.PREFIX,"lib","libpython2.7.so")
 
     @property
     def SITE_PACKAGES(self):
-        return os.path.join(self.PREFIX,"lib","python2.6","site-packages")
+        return os.path.join(self.PREFIX,"lib","python2.7","site-packages")
 
     def init(self):
         """Build the base myppy python environment."""
@@ -168,6 +168,8 @@ class MyppyEnv(object):
         return (self._db.execute(q,(recipe,)).fetchone() is not None)
 
     def is_explicitly_installed(self,recipe):
+        if not self.is_installed(recipe):
+            return False
         deps = set(self.DEPENDENCIES)
         for row in self._db.execute("SELECT recipe FROM installed_recipes"):
             deps.add(row[0])

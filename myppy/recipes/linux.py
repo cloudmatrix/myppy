@@ -171,14 +171,14 @@ class apbuild(Recipe):
 
     
 
-class python26(base.python26,Recipe,):
+class python27(base.python27,Recipe,):
     """Install the basic Python interpreter, with myppy support."""
     DEPENDENCIES = ["lib_openssl"]
     def _configure(self):
-        super(python26,self)._configure()
+        super(python27,self)._configure()
 
     def _post_config_patch(self):
-        super(python26,self)._post_config_patch()
+        super(python27,self)._post_config_patch()
         #  Can't link epoll without symbols from a later libc.
         #  We'll have to settle for old-fashioned select().
         def remove_have_epoll(lines):
@@ -208,12 +208,12 @@ class lib_openssl(base.lib_openssl,Recipe):
 
 
 class py_cxfreeze(PyRecipe):
-    DEPENDENCIES = ["python26"]
+    DEPENDENCIES = ["python27"]
     SOURCE_URL = "http://downloads.sourceforge.net/project/cx-freeze/4.2.2/cx_Freeze-4.2.2.tar.gz"
 
 
 class py_bbfreeze(PyRecipe):
-    DEPENDENCIES = ["python26"]
+    DEPENDENCIES = ["python27"]
     SOURCE_URL = "http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-0.97.2.tar.gz"
     def _patch(self):
         super(py_bbfreeze,self)._patch()
@@ -309,10 +309,10 @@ class _lib_qt4_base(base._lib_qt4_base,Recipe):
         self._patch_build_file("src/corelib/thread/qthread_unix.cpp",dont_use_pthread_cleanup)
 
 
-class lib_qt4(base.lib_qt4,_lib_qt4_base):
+class lib_qt4_small(base.lib_qt4_small,_lib_qt4_base):
     pass
 
-class lib_qt4_full(base.lib_qt4_full,_lib_qt4_base):
+class lib_qt4(base.lib_qt4,_lib_qt4_base):
     pass
 
 
@@ -541,22 +541,6 @@ class lib_glib(Recipe):
 class lib_atk(Recipe):
     SOURCE_URL = "http://ftp.acc.umu.se/pub/gnome/sources/atk/1.11/atk-1.11.4.tar.bz2"
 
-
-class lib_apiextractor(base.lib_apiextractor,CMakeRecipe):
-    @property
-    def LDFLAGS(self):
-        flags = super(lib_apiextractor,self).LDFLAGS
-        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
-        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
-        return flags
-
-class lib_generatorrunner(base.lib_generatorrunner,CMakeRecipe):
-    @property
-    def LDFLAGS(self):
-        flags = super(lib_generatorrunner,self).LDFLAGS
-        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
-        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
-        return flags
 
 class py_pyside(base.py_pyside,PyCMakeRecipe):
     @property

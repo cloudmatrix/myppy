@@ -1,23 +1,31 @@
-diff -rauN py2app-0.5.2/py2app/build_app.py patched-py2app/build_app.py
---- py2app-0.5.2/py2app/build_app.py	2010-07-26 00:05:08.000000000 +1000
-+++ patched-py2app/build_app.py	2010-12-01 16:21:49.000000000 +1100
-@@ -29,6 +29,7 @@
- from modulegraph.modulegraph import SourceModule, Package, os_listdir
+diff -rauN py2app-0.7.1/py2app/build_app.py patched-py2app-0.7.1/py2app/build_app.py
+--- py2app-0.7.1/py2app/build_app.py	2012-10-26 23:33:45.000000000 +1100
++++ patched-py2app-0.7.1/py2app/build_app.py	2012-12-05 11:40:23.000000000 +1100
+@@ -82,13 +82,13 @@
+         super(PythonStandalone, self).__init__(*args, **kwargs)
+         self.appbuilder = appbuilder
  
- import macholib.dyld
-+import macholib.util
- import macholib.MachOStandalone
+-    def copy_dylib(self, src):
++    def copy_dylib(self, src, loader_path=None):
+         dest = os.path.join(self.dest, os.path.basename(src))
+         if os.path.islink(src):
+             dest = os.path.join(self.dest, os.path.basename(os.path.realpath(src)))
+         else:
+             dest = os.path.join(self.dest, os.path.basename(src))
+-        return self.appbuilder.copy_dylib(src, dest)
++        return self.appbuilder.copy_dylib(src, dest, loader_path)
  
- from py2app.create_appbundle import create_appbundle
-@@ -603,6 +604,7 @@
-             else:
-                 self.run_normal()
-         except:
-+            raise
-             # XXX - remove when not debugging
-             #       distutils sucks
-             import pdb, sys, traceback
-@@ -775,6 +777,7 @@
+     def copy_framework(self, info):
+         destfn = self.appbuilder.copy_framework(info, self.dest)
+@@ -453,6 +453,7 @@
+         except ValueError:
+             info = None
+         else:
++            fmwk = os.path.normpath(fmwk)
+             info = macholib.dyld.framework_info(fmwk)
+ 
+         if info is not None:
+@@ -897,6 +898,7 @@
              if self.semi_standalone:
                  self.symlink(sys.executable, execdst)
              else:
@@ -25,44 +33,64 @@ diff -rauN py2app-0.5.2/py2app/build_app.py patched-py2app/build_app.py
                  if os.path.exists(os.path.join(sys.prefix, ".Python")):
                      fn = os.path.join(sys.prefix, "lib", "python%d.%d"%(sys.version_info[:2]), "orig-prefix.txt")
                      if os.path.exists(fn):
-@@ -785,10 +788,10 @@
-                         rest_path = rest_path[1:]
+@@ -912,13 +914,15 @@
+                         # that we don't want use, we need the executable in Resources/Python.app
+                         dpath = os.path.join(prefix, 'Resources', 'Python.app', 'Contents', 'MacOS')
+                         self.copy_file(os.path.join(dpath, PYTHONFRAMEWORK), execdst)
++                        execsrc = os.path.join(dpath, PYTHONFRAMEWORK)
  
-                     print "XXXX", os.path.join(prefix, rest_path)
--                    self.copy_file(os.path.join(prefix, rest_path), execdst)
-+                    execsrc = os.path.join(prefix, rest_path)
+ 
+                     else:
+-                        self.copy_file(os.path.join(prefix, rest_path), execdst)
++                        execsrc = os.path.join(prefix, rest_path)
++
++                self.copy_file(execsrc, execdst)
++                macholib.MachOStandalone.rewrite_loader_path(execdst, execsrc)
  
 -                else:
 -                    self.copy_file(sys.executable, execdst)
-+                self.copy_file(execsrc, execdst)
-+                macholib.MachOStandalone.rewrite_loader_path(execdst,execsrc)
              if not self.debug_skip_macholib:
                  mm = PythonStandalone(self, dst, executable_path=exp)
                  dylib, runtime = self.get_runtime()
-@@ -885,6 +888,7 @@
+@@ -1035,11 +1039,12 @@
+         log.info('stripping saved %d bytes (%d / %d)',
+             unstripped - stripped, stripped, unstripped)
+ 
+-    def copy_dylib(self, src, dst):
++    def copy_dylib(self, src, dst, loader_path=None):
+         # will be copied from the framework?
          if src != sys.executable:
              force, self.force = self.force, True
              self.copy_file(src, dst)
-+            macholib.MachOStandalone.rewrite_loader_path(dst,src)
++            macholib.MachOStandalone.rewrite_loader_path(dst, src)
              self.force = force
          return dst
  
-@@ -1275,6 +1279,7 @@
+@@ -1707,6 +1712,8 @@
              )
              self.mkpath(os.path.dirname(fn))
              copy_file(copyext.filename, fn, dry_run=self.dry_run)
-+            macholib.MachOStandalone.rewrite_loader_path(fn,copyext.filename)
++            if not self.dry_run:
++                macholib.MachOStandalone.rewrite_loader_path(fn, copyext.filename)
  
-         target.appdir = appdir
-         return appdir
-diff -rauN py2app-0.5.2/py2app/util.py patched-py2app/util.py
---- py2app-0.5.2/py2app/util.py	2010-07-14 00:45:01.000000000 +1000
-+++ patched-py2app/util.py	2010-12-01 16:21:49.000000000 +1100
-@@ -589,3 +589,7 @@
-     MAPC = '/Developer/usr/bin/mapc'
+         if 0 and sys.version_info[:2] >= (3, 2) and not self.alias:
+             import encodings
+diff -rauN py2app-0.7.1/py2app/util.py patched-py2app-0.7.1/py2app/util.py
+--- py2app-0.7.1/py2app/util.py	2012-10-16 22:46:47.000000000 +1100
++++ patched-py2app-0.7.1/py2app/util.py	2012-12-03 22:58:41.000000000 +1100
+@@ -5,6 +5,7 @@
+ from modulegraph.util import *
+ from modulegraph import zipio
+ import macholib.util
++import macholib.MachOStandalone
+ import warnings
+ from distutils import log
+ 
+@@ -630,3 +631,7 @@
+ 
  def mapc(src, dst):
-     os.spawnv(os.P_WAIT, MAPC, [MAPC, src, dst])
+     subprocess.check_call([_get_tool('mapc'), src, dst])
 +
 +
-+def rewrite_loader_path(newpath,oldpath):
-+    return macholib.util.rewrite_loader_path(newpath,oldpath)
++def rewrite_loadr_path(newpath, oldpath):
++    return macholib.MachoOStandalone.rewrite_loader_path(newpath, oldpath)
