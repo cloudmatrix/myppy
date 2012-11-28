@@ -19,7 +19,7 @@ from myppy.recipes import base
 
 class Recipe(base.Recipe):
 
-    ISYSROOT = "/Developer/SDKs/MacOSX10.4u.sdk"
+    ISYSROOT = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk"
 
     @property
     def TARGET_ARCHS(self):
@@ -27,11 +27,11 @@ class Recipe(base.Recipe):
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0"
+        return "/usr/bin/gcc"
 
     @property
     def CXX(self):
-        return "/usr/bin/g++-4.0"
+        return "/usr/bin/g++"
 
     @property
     def LOCAL_ARCH(self):
@@ -48,12 +48,12 @@ class Recipe(base.Recipe):
     @property
     def CFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "-DNDEBUG -Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
+        return "-DNDEBUG -Os %s %s -mmacosx-version-min=10.7 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CXXFLAGS(self):
         archflags = " ".join("-arch "+arch for arch in self.TARGET_ARCHS)
-        return "-DNDEBUG -Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
+        return "-DNDEBUG -Os %s %s -mmacosx-version-min=10.7 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,)
 
     @property
     def CONFIGURE_VARS(self):
@@ -130,11 +130,11 @@ class NWayRecipe(Recipe):
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0 -Os -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
+        return "/usr/bin/gcc -Os -mmacosx-version-min=10.7 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
 
     @property
     def CXX(self):
-        return "/usr/bin/g++-4.0 -Os -mmacosx-version-min=10.4 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
+        return "/usr/bin/g++ -Os -mmacosx-version-min=10.7 -arch %s -isysroot %s" % (self.TARGET_ARCH,self.ISYSROOT,)
 
     @property
     def CFLAGS(self):
@@ -205,8 +205,11 @@ class NWayRecipe(Recipe):
                 filepath = os.path.join(dirnm,nm)
                 ext = nm.rsplit(".",1)[-1]
                 if ext not in ("dylib","so","o","a"):
-                    if "Mach-O" not in self.target.bt("file",filepath):
-                        continue
+                    try:
+                        if "Mach-O" not in self.target.bt("file",filepath):
+                            continue
+                    except Exception:
+                        pass
                 relfilepath = filepath[len(workdir):]
                 if not os.path.isdir(os.path.dirname(fatdir+relfilepath)):
                     os.makedirs(os.path.dirname(fatdir+relfilepath))
@@ -250,11 +253,19 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         incdir = os.path.join(self.PREFIX,"include")
         env = env.copy()
         env.setdefault("LDFLAGS",self.LDFLAGS)
-        env.setdefault("CFLAGS","-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
-        env.setdefault("CXXFLAGS","-Os %s %s -mmacosx-version-min=10.4 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
-        with cd(workdir):
+        env.setdefault("CFLAGS","-Os %s %s -mmacosx-version-min=10.7 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
+        env.setdefault("CXXFLAGS","-Os %s %s -mmacosx-version-min=10.7 -isysroot %s" % (archflags,self.INCFLAGS,self.ISYSROOT,))
+        # Do an out-of-source build, required by some recipes.
+        builddir = os.path.join(self._get_builddir(), "MYPPY-BUILD")
+        if not os.path.exists(builddir):
+            os.makedirs(builddir)
+        cmd.append("..")
+        with cd(builddir):
             self.target.do(*cmd,env=env)
 
+    def _generic_make(self, *args, **kwds):
+        kwds.setdefault("relpath", "MYPPY-BUILD")
+        super(CMakeRecipe, self)._generic_make(*args, **kwds)
 
 
 class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
@@ -265,12 +276,12 @@ class PyRecipe(base.PyRecipe,Recipe):
     pass
 
 
-class python26(base.python26,Recipe):
+class python27(base.python27,Recipe):
     """Install the basic Python interpreter, with myppy support."""
 
     @property
     def CC(self):
-        return "/usr/bin/gcc-4.0 -Os -L%s -lz -mmacosx-version-min=10.4 -isysroot %s" % (os.path.join(self.PREFIX,"lib"),self.ISYSROOT,)
+        return "/usr/bin/gcc -Os -L%s -lz -mmacosx-version-min=10.7 -isysroot %s" % (os.path.join(self.PREFIX,"lib"),self.ISYSROOT,)
 
     @property
     def CONFIGURE_ARGS(self):
@@ -278,12 +289,13 @@ class python26(base.python26,Recipe):
         #  makes python install symlinks that point to themselves.  Use a fake
         #  prefix to avoid this, then just delete it later.
         fwdir = os.path.join(self.target.rootdir,"Contents","Frameworks")
-        return ["--enable-universalsdk",
+        return ["--enable-universalsdk=" + self.ISYSROOT,
+                "--with-universal-archs=intel",
                 "--enable-framework="+fwdir,
                 "--prefix="+os.path.join(self.target.rootdir,"fake-prefix")]
 
     def _patch(self):
-        super(python26,self)._patch()
+        super(python27,self)._patch()
         #  The standard config scripts can't handle repeated -arch flags in
         #  CFLAGS.  Patch them to ignore the duplicates.
         def handle_duplicate_arch_names(lines):
@@ -307,8 +319,7 @@ class python26(base.python26,Recipe):
         self._patch_build_file("Mac/PythonLauncher/Makefile.in",set_python_apps_dir)
 
     def install(self):
-        super(python26,self).install()
-        os.symlink("../Python",os.path.join(self.PREFIX,"lib","libpython2.6.dylib"))
+        super(python27,self).install()
         shutil.rmtree(os.path.join(self.target.rootdir,"fake-prefix"))
 
 
@@ -380,9 +391,10 @@ class _lib_qt4_base(base._lib_qt4_base,Recipe):
     @property
     def CONFIGURE_ARGS(self):
         args = list(super(_lib_qt4_base,self).CONFIGURE_ARGS)
-        #  Must build carbon when targeting 10.4
-        args.extend(["-no-framework","-universal","-sdk",self.ISYSROOT,"-v",
-                     "-platform","macx-g++40","-carbon"])
+        args.extend(["-no-framework","-sdk",self.ISYSROOT,"-v",
+                     "-platform","macx-g++"])
+        for arch in self.TARGET_ARCHS:
+            args.extend(["-arch", arch])
         return args
 
 
@@ -398,7 +410,14 @@ class lib_qt4(base.lib_qt4,_lib_qt4_base):
 
 
 class lib_qt4_full(base.lib_qt4_full,_lib_qt4_base):
-    pass
+    def install(self):
+        super(lib_qt4,self).install()
+        #  Copy the menu.nib bundle into the app resource directory.
+        #  Otherwise Qt can't find it and complains.
+        workdir = self._get_builddir()
+        menunib_in = os.path.join(workdir,"src/gui/mac/qt_menu.nib")
+        menunib_out = os.path.join(self.target.rootdir,"Contents","Resources","qt_menu.nib")
+        shutil.copytree(menunib_in,menunib_out)
 
 
 class lib_icu(Recipe):
@@ -421,13 +440,13 @@ class lib_xslt(base.lib_xslt,NWayRecipe):
 
 
 class py_modulegraph(PyRecipe):
-    SOURCE_URL = "http://pypi.python.org/packages/source/m/modulegraph/modulegraph-0.8.tar.gz"
+    SOURCE_URL = "http://pypi.python.org/packages/source/m/modulegraph/modulegraph-0.10.1.tar.gz"
 
 class py_altgraph(PyRecipe):
-    SOURCE_URL = "http://pypi.python.org/packages/source/a/altgraph/altgraph-0.8.tar.gz"
+    SOURCE_URL = "http://pypi.python.org/packages/source/a/altgraph/altgraph-0.10.1.tar.gz"
 
 class py_macholib(PyRecipe):
-    SOURCE_URL = "http://pypi.python.org/packages/source/m/macholib/macholib-1.3.tar.gz"
+    SOURCE_URL = "http://pypi.python.org/packages/source/m/macholib/macholib-1.5.tar.gz"
     def _patch(self):
         workdir = self._get_builddir()
         patchfile = os.path.join(os.path.dirname(__file__),"_macholib.patch")
@@ -437,7 +456,7 @@ class py_macholib(PyRecipe):
 
 class py_py2app(PyRecipe):
     DEPENDENCIES = ["py_altgraph","py_modulegraph","py_macholib"]
-    SOURCE_URL = "http://pypi.python.org/packages/source/p/py2app/py2app-0.5.2.tar.gz"
+    SOURCE_URL = "http://pypi.python.org/packages/source/p/py2app/py2app-0.7.1.tar.gz"
     def _patch(self):
         workdir = self._get_builddir()
         patchfile = os.path.join(os.path.dirname(__file__),"_py2app.patch")
@@ -482,19 +501,13 @@ class py_pypy(base.py_pypy,Recipe):
 
 
 
-class lib_apiextractor(base.lib_apiextractor,CMakeRecipe):
-    @property
-    def LDFLAGS(self):
-        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
-        flags = super(lib_apiextractor,self).LDFLAGS
-        flags = ("-L%s -lQtNetwork -lQtCore -lz -framework CoreFoundation -framework Carbon -framework SystemConfiguration " % (libdir,)) + flags
-        return flags
+class cmake(base.cmake, Recipe):
 
-class lib_generatorrunner(base.lib_generatorrunner,CMakeRecipe):
-    @property
-    def LDFLAGS(self):
-        libdir = os.path.join(lib_qt4_full(self.target).INSTALL_PREFIX,"lib")
-        flags = super(lib_generatorrunner,self).LDFLAGS
-        flags = ("-L%s -lQtNetwork -lQtCore -lz -framework CoreFoundation -framework Carbon -framework SystemConfiguration " % (libdir,)) + flags
-        return flags
+    def _configure(self):
+        env = {"MACOSX_DEPLOYMENT_TARGET": ""}
+        self._generic_configure(env=env)
+
+    def _make(self):
+        env = {"MACOSX_DEPLOYMENT_TARGET": ""}
+        self._generic_make(env=env)
 
