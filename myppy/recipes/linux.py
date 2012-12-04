@@ -20,24 +20,28 @@ from myppy.recipes import base
 class Recipe(base.Recipe):
 
     @property
+    def CC(self):
+        return self.target.CC
+
+    @property
+    def CXX(self):
+        return self.target.CXX
+
+    @property
     def LDFLAGS(self):
-        libdir = os.path.join(self.PREFIX,"lib")
-        flags = "-static-libgcc -L%s" % (libdir,)
-        return flags
+        return self.target.LDFLAGS
 
     @property
     def CFLAGS(self):
-        incdir = os.path.join(self.PREFIX,"include")
-        return "-Os -D_GNU_SOURCE -DNDEBUG -I%s -static-libgcc" % (incdir,)
+        return self.target.CFLAGS
 
     @property
     def CXXFLAGS(self):
-        incdir = os.path.join(self.PREFIX,"include")
-        return "-Os -D_GNU_SOURCE -DNDEBUG -I%s -static-libgcc" % (incdir,)
+        return self.target.CXXFLAGS
 
     @property
     def LD_LIBRARY_PATH(self):
-        return os.path.join(self.PREFIX,"lib")
+        return self.target.LD_LIBRARY_PATH
 
     @property
     def PKG_CONFIG_PATH(self):
@@ -45,8 +49,12 @@ class Recipe(base.Recipe):
 
     @property
     def CONFIGURE_VARS(self):
-        return ["CC=apgcc","CXX=apg++","LDFLAGS="+self.LDFLAGS,
-                "CFLAGS="+self.CFLAGS,"CXXFLAGS="+self.CXXFLAGS,
+        return ["CC="+self.CC,
+                "CXX="+self.CXX,
+                "LDFLAGS="+self.LDFLAGS,
+                "CFLAGS="+self.CFLAGS,
+                "CXXFLAGS="+self.CXXFLAGS,
+                "CPPFLAGS="+self.CXXFLAGS,
                 "LD_LIBRARY_PATH="+self.LD_LIBRARY_PATH,
                 "PKG_CONFIG_PATH="+self.PKG_CONFIG_PATH] 
 
@@ -71,7 +79,7 @@ class Recipe(base.Recipe):
             relpath = self.MAKE_RELPATH
         cmd = ["make",]
         if vars is not None:
-            cmd.extend(["CC=apgcc","CXX=apg++"])
+            cmd.extend(["CC="+self.CC,"CXX="+self.CXX])
             cmd.extend(vars)
         if makefile is not None:
             cmd.extend(("-f",makefile))
@@ -125,51 +133,6 @@ class cmake(base.cmake,Recipe):
                     yield ln
         self._patch_build_file("Utilities/cmlibarchive/libarchive/archive_entry.c",stub_out_device_functions)
 
-class apbuild_base(Recipe):
-    SOURCE_URL = "http://autopackage.googlecode.com/files/autopackage-1.4.2-x86.tar.bz2"
-    SOURCE_MD5 = "4a4cb89586d817d2d0c4a840b8d4ff0c"
-    def build(self):
-        pass
-    def install(self):
-        with tempdir() as workdir:
-            updir = self._unpack()
-            try:
-                with chstdin("y"):
-                    self.target.do("bash",os.path.join(updir,"install"),"--prefix",self.PREFIX,"--silent")
-            except subprocess.CalledProcessError:
-                pass
-        if not os.path.isdir(os.path.join(self.PREFIX,"lib")):
-            os.mkdir(os.path.join(self.PREFIX,"lib"))
-        open(os.path.join(self.PREFIX,"lib","apbuild-base--installed.txt"),"wb").close()
-
-
-class apbuild(Recipe):
-    DEPENDENCIES = ["apbuild_base"]
-    SOURCE_URL = "http://autopackage.googlecode.com/files/Autopackage%20Development%20Environment%201.4.2.package"
-    SOURCE_MD5 = "f0f43ab85350078349246441fb3304c6"
-    def build(self):
-        pass
-    def install(self):
-        src = self.target.fetch(self.SOURCE_URL)
-        self.target.do("bash",src)
-        #  The apgcc installer doesn't error out when it fails.
-        #  Check that apgcc is actually available.
-        self.target.do("apgcc","-v")
-        if os.path.exists(os.path.join(self.PREFIX,"bin/.proxy.apgcc")):
-            shutil.move(os.path.join(self.PREFIX,"bin/.proxy.apgcc"),
-                        os.path.join(self.PREFIX,"bin/apgcc"))
-        #  Hack it to correctly detect pre-compiled header generation with
-        #  the calling convention used by wxWidgets.
-        def fix_pch_detection(lines):
-            for ln in lines:
-               if ln.strip().startswith("$files++ if ("):
-                   yield "\t\t# exclude gch or gch.d to hack PCH detection\n"
-                   yield "\t\t$files++ if (!(/^-/) && !(/gch$/) && !(/gch.d/));\n"
-               else:
-                   yield ln
-        self._patch_file("share/apbuild/Apbuild/GCC.pm",fix_pch_detection)
-
-    
 
 class python27(base.python27,Recipe,):
     """Install the basic Python interpreter, with myppy support."""
@@ -186,7 +149,19 @@ class python27(base.python27,Recipe,):
                 if "HAVE_EPOLL" not in ln:
                     yield ln
         self._patch_build_file("pyconfig.h",remove_have_epoll)
-
+        #  Device functions are not part of LSB?
+        def remove_have_device_macros(lines):
+            for ln in lines:
+                if "HAVE_DEVICE_MACROS" not in ln:
+                    yield ln
+        self._patch_build_file("pyconfig.h",remove_have_device_macros)
+        #  Remove logic that adds unwanted include directories.
+        def remove_multiarch_paths(lines):
+            for ln in lines:
+                yield ln
+                if ln.strip() == "def add_multiarch_paths(self):":
+                    yield "        return\n"
+        self._patch_build_file("setup.py",remove_multiarch_paths)
 
 class patchelf(Recipe):
     SOURCE_URL = "http://hydra.nixos.org/build/114505/download/2/patchelf-0.5.tar.bz2"
@@ -199,7 +174,7 @@ class lib_openssl(base.lib_openssl,Recipe):
         def ensure_gnu_source(lines):
             for ln in lines:
                 if ln.startswith("CFLAG="):
-                    ln = ln.strip() + " -D_GNU_SOURCE\n"
+                    ln = ln.strip() + " -D_GNU_SOURCE -m32\n"
                     ln = ln.replace("-O3","-Os")
                     yield ln
                 else:
@@ -269,7 +244,7 @@ class lib_gtk(Recipe):
 class _lib_qt4_base(base._lib_qt4_base,Recipe):
     #  Build against an older version of fontconfig and freetype, so we
     #  don't suck in symbols that aren't available on older linuxen.
-    BUILD_DEPENDENCIES = ["lib_fontconfig_ft"]
+    #BUILD_DEPENDENCIES = ["lib_fontconfig_ft"]
     @property
     def DISABLE_FEATURES(self):
         features = super(_lib_qt4_base,self).DISABLE_FEATURES
@@ -279,9 +254,25 @@ class _lib_qt4_base(base._lib_qt4_base,Recipe):
     def CONFIGURE_ARGS(self):
         args = list(super(_lib_qt4_base,self).CONFIGURE_ARGS)
         args.append("-no-glib")
+        args.append("-platform")
+        args.append("linux-lsb-g++")
+        args.append("-arch")
+        args.append("i386")
+        args.append("-L")
+        args.append(os.path.join(self.PREFIX, "opt/lsb/lib"))
         return args
     def _patch(self):
         super(_lib_qt4_base,self)._patch()
+        #  Force compilation with -m32
+        def force_i386(lines):
+            for ln in lines:
+                for prog in ("CC", "CXX", "LINK"):
+                    if ln.startswith("QMAKE_" + prog + "\t"):
+                        yield ln.strip() + " -m32\n"
+                        break
+                else:
+                    yield ln
+        self._patch_build_file("mkspecs/linux-lsb-g++/qmake.conf",force_i386)
         #  Disable some functions only available on newer linuxes.
         #  Fortunately qt provides runtime fallbacks for these.
         def dont_use_newer_funcs(lines):
@@ -307,6 +298,17 @@ class _lib_qt4_base(base._lib_qt4_base,Recipe):
                 else:
                     yield ln
         self._patch_build_file("src/corelib/thread/qthread_unix.cpp",dont_use_pthread_cleanup)
+        #  Fix some LSB compiance errors in webkit.
+        def fix_timegm(lines):
+            for ln in lines:
+                if ln.strip() == "#define HAVE_TIMEGM 1":
+                    yield "#if !defined(__LSB_VERSION__)\n"
+                    yield ln
+                    yield "#endif\n"
+                else:
+                    yield ln
+        self._patch_build_file("src/3rdparty/javascriptcore/JavaScriptCore/wtf/Platform.h", fix_timegm)
+        self._patch_build_file("src/3rdparty/webkit/JavaScriptCore/wtf/Platform.h", fix_timegm)
 
 
 class lib_qt4(base.lib_qt4,_lib_qt4_base):
@@ -324,22 +326,8 @@ class lib_wxwidgets_base(base.lib_wxwidgets_base,Recipe):
     CONFIGURE_ARGS.extend(base.lib_wxwidgets_base.CONFIGURE_ARGS)
 
 
-class bin_rpm2cpio(Recipe):
-    SOURCE_URL = "http://www.iagora.com/~espel/rpm2cpio"
-    def build(self):
-        pass
-    def install(self):
-        src = self.target.fetch(self.SOURCE_URL)
-        dst = os.path.join(self.INSTALL_PREFIX, "bin", "rpm2cpio")
-        os.rename(src,dst)
-        mod = os.stat(dst).st_mode
-        mod |= stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-        os.chmod(dst,mod)
-
-
 class bin_lsbsdk(Recipe):
-    DEPENDENCIES = ["bin_rpm2cpio"]
-    SOURCE_URL = "http://ftp.linuxfoundation.org/pub/lsb/bundles/released-4.1.0/sdk/lsb-sdk-4.1.2-1.ia32.tar.gz"
+    SOURCE_URL = "http://ftp.linuxfoundation.org/pub/lsb/bundles/released-4.1.0/sdk/lsb-sdk-4.1.5-1.ia32.tar.gz"
     def build(self):
         pass
     def install(self):
@@ -352,6 +340,14 @@ class bin_lsbsdk(Recipe):
                     stdout.seek(0)
                     with cd(self.INSTALL_PREFIX):
                         self.target.do("cpio", "-duvi", stdin=stdout)
+        def hackily_define_TIOCSWINSZ(lines):
+            for ln in lines:
+                yield ln
+                if ln.strip().startswith("#define TIOCGWINSZ"):
+                    yield "#define TIOCSWINSZ    0x5414\n"
+        ioctl_header = os.path.join(self.INSTALL_PREFIX,
+                                    "opt/lsb/include/sys/ioctl.h")
+        self._patch_file(ioctl_header, hackily_define_TIOCSWINSZ)
 
 
 class lib_sparsehash(Recipe):
@@ -383,13 +379,7 @@ class lib_sparsehash(Recipe):
 class lib_shiboken(base.lib_shiboken,CMakeRecipe):
     #  Use a private build of google sparsehash, so we don't pull
     #  in symbols from C++ TR1 hashtable spec.
-    DEPENDENCIES = ["lib_sparsehash"]
-    @property
-    def LDFLAGS(self):
-        flags = super(lib_shiboken,self).LDFLAGS
-        lsblibdir = os.path.join(self.PREFIX,"opt","lsb","lib")
-        flags += " -L%s" % (lsblibdir,)
-        return flags
+    #DEPENDENCIES = ["lib_sparsehash"]
     @property
     def CXXFLAGS(self):
         flags = super(lib_shiboken,self).CXXFLAGS
@@ -399,7 +389,7 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
     def LDFLAGS(self):
         flags = super(lib_shiboken,self).LDFLAGS
         libdir = os.path.join(lib_qt4(self.target).INSTALL_PREFIX,"lib")
-        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXrandr -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
+        flags = ("-L%s -lpthread -lrt -lz -ldl -lQtNetwork -lQtCore -ljpeg -ltiff -lpng15 -lz -lX11 -lXrender -lXext -lfontconfig -lSM -lICE " % (libdir,)) + flags
         return flags
     def _patch(self):
         super(lib_shiboken,self)._patch()
@@ -445,8 +435,8 @@ class lib_shiboken(base.lib_shiboken,CMakeRecipe):
             yield ln
             for ln in lines:
                 yield ln
-        self._patch_build_file("libshiboken/bindingmanager.cpp",provide_hash_funcs)
-        self._patch_build_file("libshiboken/typeresolver.cpp",provide_hash_funcs)
+        #self._patch_build_file("libshiboken/bindingmanager.cpp",provide_hash_funcs)
+        #self._patch_build_file("libshiboken/typeresolver.cpp",provide_hash_funcs)
 
 
 class py_myppy(base.py_myppy,Recipe):
@@ -511,11 +501,11 @@ class py_myppy(base.py_myppy,Recipe):
 class lib_freetype(Recipe):
     #  This is intentionally an old version.  We don't distribute it,
     #  but it's API compatible back to some old Linux distros.
-    CONFIGURE_VARS = None
-    MAKE_VARS = None
-    LDFLAGS = ""
-    CFLAGS = ""
-    SOURCE_URL = "http://download.savannah.gnu.org/releases/freetype/freetype-2.1.10.tar.gz"
+    #CONFIGURE_VARS = None
+    #MAKE_VARS = None
+    #LDFLAGS = "-m32"
+    #CFLAGS = "-m32"
+    SOURCE_URL = "http://downloads.sourceforge.net/project/freetype/freetype2/2.2.1/freetype-2.2.1.tar.gz"
 
 
 class lib_fontconfig(Recipe):
@@ -560,5 +550,13 @@ class py_pypy(base.py_pypy,Recipe):
         self._patch_build_file("pypy/translator/c/src/profiling.c",dont_use_setaffinity)
 
 
-
+class lib_bz2(base.lib_bz2,Recipe):
+    def _patch(self):
+        super(lib_bz2,self)._patch()
+        def add_cflags(lines):
+            for ln in lines:
+                if ln.startswith("CFLAGS="):
+                    ln = ln.strip() + self.CFLAGS + "\n"
+                yield ln
+        self._patch_build_file("Makefile",add_cflags)
 

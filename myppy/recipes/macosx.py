@@ -263,10 +263,6 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         with cd(builddir):
             self.target.do(*cmd,env=env)
 
-    def _generic_make(self, *args, **kwds):
-        kwds.setdefault("relpath", "MYPPY-BUILD")
-        super(CMakeRecipe, self)._generic_make(*args, **kwds)
-
 
 class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
     pass
