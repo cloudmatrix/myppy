@@ -41,7 +41,7 @@ class MyppyEnv(base.MyppyEnv):
     @property
     def CXXFLAGS(self):
         flags = "-Os -D_GNU_SOURCE -DNDEBUG -m32"
-        for incdir in ("include", "opt/lsb/include", "opt/lsb/include/c++"):
+        for incdir in ("include", "opt/lsb/include"):
             flags += " -I" + os.path.join(self.PREFIX,incdir)
         return  flags
 

@@ -99,6 +99,11 @@ class Recipe(base.Recipe):
 
 
 class CMakeRecipe(base.CMakeRecipe,Recipe):
+    @property
+    def CXXFLAGS(self):
+        flags = super(CMakeRecipe, self).CXXFLAGS
+        flags += " -I" + os.path.join(self.PREFIX, "opt/lsb/include/c++")
+        return flags
     def _generic_cmake(self,relpath=".",args=[],env={}):
         env = env.copy()
         env.setdefault("LDFLAGS",self.LDFLAGS)
@@ -116,6 +121,11 @@ class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
 
 
 class cmake(base.cmake,Recipe):
+    @property
+    def CXXFLAGS(self):
+        flags = super(cmake, self).CXXFLAGS
+        flags += " -I" + os.path.join(self.PREFIX, "opt/lsb/include/c++")
+        return flags
     def _patch(self):
         super(cmake,self)._patch()
         def stub_out_device_functions(lines):
