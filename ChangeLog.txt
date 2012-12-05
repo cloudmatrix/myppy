@@ -1,4 +1,13 @@
 
+v0.2.0:
+
+    * Support for building on OSX MountainLion, and using higher deployment
+      targets if the requisite development environment is not available.
+    * Use Linux Standard Base SDK rather than AutoTools for building on
+      linux.  AutoTools appears to have died an inglorious death, and LSB
+      appears to compile things more reliably anyway.
+    * Update various packages to their latest available versions.
+
 
 v0.1.1:
 

@@ -14,11 +14,11 @@ the build process.
 
 The secret sauce is basically:
 
-  * Using the `autopackage build tools`_ to hide newer glibc symbols on Linux,
-    so that compiled libs can be used unmodified on older boxen.
+  * Using the Linux Standard Base SDK on Linux, to avoid linking against
+    but the most portable of symbols.
 
-  * Setting MACOSX_DEPLOYMENT_TARGET=10.4 and building universal binaries
-    on OSX.
+  * Setting MACOSX_DEPLOYMENT_TARGET to the lowest available version, and
+    building universal binaries on OSX.
 
   * Setting the rpath or loader_path on all shared libs to a sensible value,
     so that their deps can be found regardless of where the myppy env is
@@ -44,7 +44,7 @@ command::
 
     #> myppy PATH/TO/ENV init
 
-This will build and set up a basic python installation (currently python 2.6.6)
+This will build and set up a basic python installation (currently python 2.7.3)
 along with setuptools and pip.  Most python packages can be installed directly
 using pip.  For packages with more complex needs a myppy "recipe" is provided,
 and you can install them using e.g.::
@@ -90,7 +90,7 @@ distros to the latest Ubuntu release.
 
 Myppy also has a few modifications that make it play nicely with other tools
 for building frozen applications, such as `esky`_ and `signedimp`_, mostly to
-do with what modules are avilable as builtins.
+do with what modules are available as builtins.
 
 
 
