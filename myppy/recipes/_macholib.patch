@@ -188,6 +188,7 @@ diff -rauN macholib-1.5/macholib/dyld.py patched-macholib-1.5/macholib/dyld.py
 +        yield os.path.normpath(os.path.join(loader_path, name[len('@loader_path/'):]))
 +
 +
++
  def dyld_default_search(name, env=None):
      yield name
  

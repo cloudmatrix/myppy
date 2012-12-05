@@ -1,0 +1,9 @@
+
+juggling SDKs is a giant PITA
+we should make it configurable with min version of OSX yo want,
+and try to find the appropriate SDKs at runtime.
+
+good resources here: http://stackoverflow.com/questions/5333490/how-can-we-restore-ppc-ppc64-as-well-as-full-10-4-10-5-sdk-support-to-xcode-4
+
+
+qt_menu.nib is not being copied correctly for some reason

@@ -13,26 +13,66 @@ from myppy.recipes import linux as _linux_recipes
 
 class MyppyEnv(base.MyppyEnv):
 
-    DEPENDENCIES = ["apbuild","patchelf"]
+    DEPENDENCIES = ["bin_lsbsdk","patchelf"]
     DEPENDENCIES.extend(base.MyppyEnv.DEPENDENCIES)
+
+    @property
+    def CC(self):
+        return "lsbcc -m32"
+
+    @property
+    def CXX(self):
+        return "lsbc++ -m32"
+
+    @property
+    def LDFLAGS(self):
+        flags = "-m32"
+        for libdir in ("lib", "opt/lsb/lib"):
+            flags += " -L" + os.path.join(self.PREFIX,libdir)
+        return flags
+
+    @property
+    def CFLAGS(self):
+        flags = "-Os -D_GNU_SOURCE -DNDEBUG -m32"
+        for incdir in ("include", "opt/lsb/include"):
+            flags += " -I" + os.path.join(self.PREFIX,incdir)
+        return  flags
+
+    @property
+    def CXXFLAGS(self):
+        flags = "-Os -D_GNU_SOURCE -DNDEBUG -m32"
+        for incdir in ("include", "opt/lsb/include", "opt/lsb/include/c++"):
+            flags += " -I" + os.path.join(self.PREFIX,incdir)
+        return  flags
+
+    @property
+    def LD_LIBRARY_PATH(self):
+        return os.path.join(self.PREFIX,"lib")
 
     def __init__(self,rootdir):
         super(MyppyEnv,self).__init__(rootdir)
-        self.env["APBUILD_STATIC_LIBGCC"] = "1"
-        self.env["AUTOPACKAGE_FRONTEND"] = "apkg-ttyfe"
-        self.env["CC"] = "apgcc"
-        self.env["CXX"] = "apg++"
+        if not os.path.exists(os.path.join(self.PREFIX,"lib")):
+            os.makedirs(os.path.join(self.PREFIX,"lib"))
+        self.env["CC"] = self.CC
+        self.env["CXX"] = self.CXX
+        self.env["LDFLAGS"] = self.LDFLAGS
+        self.env["CFLAGS"] = self.CFLAGS
+        self.env["CXXFLAGS"] = self.CXXFLAGS
+        self._add_env_path("PATH",os.path.join(self.PREFIX,"opt/lsb/bin"),1)
         self._add_env_path("PKG_CONFIG_PATH",os.path.join(self.PREFIX,
                                                           "lib/pkgconfig"))
+        self.env["LSBCC_LIBS"] = os.path.join(self.PREFIX,"opt/lsb/lib")
+        self.env["LSBCC_INCLUDES"] = os.path.join(self.PREFIX,"opt/lsb/include")
+        self.env["LSBCXX_INCLUDES"] = os.path.join(self.PREFIX,"opt/lsb/include")
+        self.env["LSB_SHAREDLIBPATH"] = os.path.join(self.PREFIX,"lib")
+        self.env["LSBCC_VERBOSE"] = os.path.join(self.PREFIX,"lib")
 
-    _RECIPES_WITH_APGCC_PROBLEMS = ("apbuild_base","apbuild", "bin_lsbsdk",
-                                    "lib_apiextractor",)
     def record_files(self,recipe,files):
-        for fpath in files:
-            fpath = os.path.join(self.rootdir,fpath)
-            fnm = os.path.basename(fpath)
-            if fpath == os.path.realpath(fpath):
-                if recipe not in self._RECIPES_WITH_APGCC_PROBLEMS:
+        if recipe not in ("bin_lsbsdk",):
+            for fpath in files:
+                fpath = os.path.join(self.rootdir,fpath)
+                fnm = os.path.basename(fpath)
+                if fpath == os.path.realpath(fpath):
                     if fnm.endswith(".so") or ".so." in fnm:
                         self._check_glibc_symbols(fpath)
                         self._strip(fpath)

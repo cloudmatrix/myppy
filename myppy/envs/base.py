@@ -76,14 +76,17 @@ class MyppyEnv(object):
             if not self._has_db_lock:
                 self._db.execute("COMMIT TRANSACTION")
 
-    def _add_env_path(self,key,path):
+    def _add_env_path(self,key,path,pos=0):
         """Add an entry to list of paths in an envionment variable."""
         PATH = self.env.get(key,"")
         if PATH:
             if sys.platform == "win32":
-                self.env[key] = path + ";" + PATH
+                splitchar = ";"
             else:
-                self.env[key] = path + ":" + PATH
+                splitchar = ":"
+            items = PATH.split(splitchar)
+            items.insert(pos, path)
+            self.env[key] = splitchar.join(items)
         else:
             self.env[key] = path
 

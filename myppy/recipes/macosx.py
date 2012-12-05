@@ -269,10 +269,6 @@ class CMakeRecipe(base.CMakeRecipe,Recipe):
         with cd(builddir):
             self.target.do(*cmd,env=env)
 
-    def _generic_make(self, *args, **kwds):
-        kwds.setdefault("relpath", "MYPPY-BUILD")
-        super(CMakeRecipe, self)._generic_make(*args, **kwds)
-
 
 class PyCMakeRecipe(base.PyCMakeRecipe,CMakeRecipe):
     pass
@@ -323,7 +319,6 @@ class python27(base.python27,Recipe):
         self._patch_build_file("Mac/Makefile.in",set_python_apps_dir)
         self._patch_build_file("Mac/IDLE/Makefile.in",set_python_apps_dir)
         self._patch_build_file("Mac/PythonLauncher/Makefile.in",set_python_apps_dir)
-
 
 class lib_sqlite3(base.lib_sqlite3,NWayRecipe):
     @property

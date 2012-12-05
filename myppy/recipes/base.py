@@ -226,6 +226,9 @@ class CMakeRecipe(Recipe):
         cmd.append("..")
         with cd(builddir):
             self.target.do(*cmd,env=env)
+    def _generic_make(self, *args, **kwds):
+        kwds.setdefault("relpath", "MYPPY-BUILD")
+        super(CMakeRecipe, self)._generic_make(*args, **kwds)
 
 
 class PyCMakeRecipe(CMakeRecipe):
@@ -418,20 +421,8 @@ class lib_tiff(Recipe):
     SOURCE_URL = "ftp://ftp.remotesensing.org/pub/libtiff/tiff-3.9.4.tar.gz"
 
 
-class lib_xml2(Recipe):
-    SOURCE_URL = "ftp://xmlsoft.org/libxml2/libxml2-2.7.8.tar.gz"
-    SOURCE_MD5 = "8127a65e8c3b08856093099b52599c86"
-
-
-class lib_xslt(Recipe):
-    DEPENDENCIES = ["lib_xml2"]
-    SOURCE_URL = "ftp://xmlsoft.org/libxml2/libxslt-1.1.26.tar.gz"
-    SOURCE_MD5 = "e61d0364a30146aaa3001296f853b2b9"
-
-
 class lib_openssl(Recipe):
-    SOURCE_URL = "http://www.openssl.org/source/openssl-1.0.0d.tar.gz"
-    SOURCE_MD5 = "40b6ea380cc8a5bf9734c2f8bf7e701e"
+    SOURCE_URL = "http://www.openssl.org/source/openssl-1.0.1c.tar.gz"
     CONFIGURE_SCRIPT = "./Configure"
     CONFIGURE_ARGS = ["linux-elf","shared"]
     CONFIGURE_VARS = None
@@ -443,6 +434,23 @@ class lib_openssl(Recipe):
             for ln in lines:
                 yield ln
         self._patch_build_file("Configure",make_Configure_executable)
+        def fix_termios_for_lsb(lines):
+            for ln in lines:
+                if ln.strip() == "#ifdef TERMIOS":
+                    yield "#if defined(__LSB_VERSION__)\n"
+                    yield "# define TERMIOS\n"
+                    yield "# undef  TERMIO\n"
+                    yield "# undef  SGTTY\n"
+                    yield "#endif\n"
+                yield ln
+        self._patch_build_file("crypto/ui/ui_openssl.c",fix_termios_for_lsb)
+        def fix_dgram_for_lsb(lines):
+            for ln in lines:
+                if ln.strip() == "#ifdef OPENSSL_SYS_LINUX":
+                    yield "#if defined(OPENSSL_SYS_LINUX) && defined(IP_MTU_DISCOVER)\n"
+                else:
+                    yield ln
+        self._patch_build_file("crypto/bio/bss_dgram.c",fix_dgram_for_lsb)
 
 
 class lib_sqlite3(Recipe):
@@ -541,18 +549,13 @@ class _lib_qt4_base(Recipe):
     def CFLAGS(self):
         flags = super(_lib_qt4_base,self).CFLAGS
         if "-static" in self.CONFIGURE_ARGS:
-            flags += " -fdata-sections -ffunction-sections -Wl,--gc-sections"
+            flags += " -fdata-sections -ffunction-sections"
         return flags
     @property
     def CXXFLAGS(self):
         flags = super(_lib_qt4_base,self).CXXFLAGS
         if "-static" in self.CONFIGURE_ARGS:
-            flags += " -fdata-sections -ffunction-sections -Wl,--gc-sections"
-        return flags
-    @property
-    def LDFLAGS(self):
-        flags = super(_lib_qt4_base,self).LDFLAGS
-        flags += " --gc-sections"
+            flags += " -fdata-sections -ffunction-sections"
         return flags
     @property
     def CONFIGURE_ARGS(self):
@@ -614,7 +617,7 @@ class py_wxpython(PyRecipe):
 
 
 class lib_shiboken(PyCMakeRecipe):
-    DEPENDENCIES = ["lib_qt4", "lib_xslt"]
+    DEPENDENCIES = ["lib_qt4"]
     SOURCE_URL = "http://qt-project.org/uploads/pyside/shiboken-1.1.2.tar.bz2"
 
 
@@ -622,19 +625,9 @@ class py_pyside(PyCMakeRecipe):
     DEPENDENCIES = ["lib_shiboken","lib_qt4"]
     SOURCE_URL = "http://qt-project.org/uploads/pyside/pyside-qt4.8+1.1.2.tar.bz2"
     @property
-    def CFLAGS(self):
-        flags = super(py_pyside,self).CFLAGS
-        flags += " -Wl,--gc-sections"
-        return flags
-    @property
     def CXXFLAGS(self):
         flags = super(py_pyside,self).CXXFLAGS
-        flags += " -fno-exceptions -Wl,--gc-sections"
-        return flags
-    @property
-    def LDFLAGS(self):
-        flags = super(py_pyside,self).LDFLAGS
-        flags += " --gc-sections"
+        flags += " -fno-exceptions"
         return flags
     def _patch(self):
         super(py_pyside,self)._patch()
