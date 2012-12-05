@@ -242,9 +242,6 @@ class lib_gtk(Recipe):
 
 
 class _lib_qt4_base(base._lib_qt4_base,Recipe):
-    #  Build against an older version of fontconfig and freetype, so we
-    #  don't suck in symbols that aren't available on older linuxen.
-    #BUILD_DEPENDENCIES = ["lib_fontconfig_ft"]
     @property
     def DISABLE_FEATURES(self):
         features = super(_lib_qt4_base,self).DISABLE_FEATURES
@@ -498,24 +495,7 @@ class py_myppy(base.py_myppy,Recipe):
 
 
 
-class lib_freetype(Recipe):
-    #  This is intentionally an old version.  We don't distribute it,
-    #  but it's API compatible back to some old Linux distros.
-    #CONFIGURE_VARS = None
-    #MAKE_VARS = None
-    #LDFLAGS = "-m32"
-    #CFLAGS = "-m32"
-    SOURCE_URL = "http://downloads.sourceforge.net/project/freetype/freetype2/2.2.1/freetype-2.2.1.tar.gz"
-
-
 class lib_fontconfig(Recipe):
-    #  This is intentionally an old version.  We don't dsitribute it,
-    #  but it's API compatible back to some old Linux distros.
-    SOURCE_URL = "http://fontconfig.org/release/fontconfig-2.4.1.tar.gz"
-
-
-class lib_fontconfig_ft(lib_fontconfig):
-    BUILD_DEPENDENCIES = ["lib_freetype"]
     #  This is intentionally an old version.  We don't dsitribute it,
     #  but it's API compatible back to some old Linux distros.
     SOURCE_URL = "http://fontconfig.org/release/fontconfig-2.4.1.tar.gz"
