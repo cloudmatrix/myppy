@@ -420,14 +420,6 @@ class lib_icu(Recipe):
         flags = super(lib_icu,self).LDFLAGS
         flags += " -headerpad_max_install_names"
         return flags
-    
-
-
-class lib_xml2(base.lib_xml2,NWayRecipe):
-    pass
-
-class lib_xslt(base.lib_xslt,NWayRecipe):
-    pass
 
 
 class py_modulegraph(PyRecipe):
