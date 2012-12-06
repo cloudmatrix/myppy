@@ -109,12 +109,13 @@ class Recipe(object):
         if not os.path.isdir(workdir):
             os.makedirs(workdir)
         if src.endswith(".bz2"):
-            cmd = ["tar","-xjf"]
+            cmd = ["tar","-xjf", src, "-C", workdir]
         elif src.endswith(".gz") or src.endswith(".tgz"):
-            cmd = ["tar","-xzf"]
+            cmd = ["tar","-xzf", src, "-C", workdir]
+        elif src.endswith(".zip"):
+            cmd = ["unzip", src, "-d", workdir]
         else:
-            cmd = ["tar","-xf"]
-        cmd.extend([src,"-C",workdir])
+            cmd = ["tar","-xf", "-C", workdir]
         self.target.do(*cmd)
         return os.path.join(workdir,os.listdir(workdir)[0])
 

@@ -199,7 +199,7 @@ class py_cxfreeze(PyRecipe):
 
 class py_bbfreeze(PyRecipe):
     DEPENDENCIES = ["python27"]
-    SOURCE_URL = "http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-0.97.2.tar.gz"
+    SOURCE_URL = "http://pypi.python.org/packages/source/b/bbfreeze/bbfreeze-1.0.2.zip"
     def _patch(self):
         super(py_bbfreeze,self)._patch()
         def add_double_link_libs(lines):
@@ -207,14 +207,14 @@ class py_bbfreeze(PyRecipe):
                 yield ln
                 if ln.strip() == "libs.append(conf.PYTHONVERSION)":
                     yield "            libs.extend(libs[:-1])"
-        self._patch_build_file(src,"setup.py",add_double_link_libs)
+        self._patch_build_file("setup.py",add_double_link_libs)
         def add_support_for_pyw_files(lines):
             for ln in lines:
                 yield ln
                 if ln.strip() == "fn = fn[:-3]":
                     yield 12*" " + "elif fn.endswith('.pyw'):\n"
                     yield 16*" " + "fn = fn[:-4]\n"
-        self._patch_build_file(src,"bbfreeze/freezer.py",add_support_for_pyw_files)
+        self._patch_build_file("bbfreeze/freezer.py",add_support_for_pyw_files)
 
 
 class lib_tiff(base.lib_tiff,Recipe):
