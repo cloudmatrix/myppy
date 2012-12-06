@@ -548,14 +548,14 @@ class _lib_qt4_base(Recipe):
     @property
     def CFLAGS(self):
         flags = super(_lib_qt4_base,self).CFLAGS
-        if "-static" in self.CONFIGURE_ARGS:
-            flags += " -fdata-sections -ffunction-sections"
+        workdir = self._get_builddir()
+        flags += " -I" + os.path.join(workdir, "src/3rdparty/freetype/include")
         return flags
     @property
     def CXXFLAGS(self):
         flags = super(_lib_qt4_base,self).CXXFLAGS
-        if "-static" in self.CONFIGURE_ARGS:
-            flags += " -fdata-sections -ffunction-sections"
+        workdir = self._get_builddir()
+        flags += " -I" + os.path.join(workdir, "src/3rdparty/freetype/include")
         return flags
     @property
     def CONFIGURE_ARGS(self):
