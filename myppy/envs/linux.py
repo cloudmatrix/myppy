@@ -5,6 +5,7 @@ from __future__ import with_statement
 
 import os
 import stat
+import subprocess
 
 from myppy.envs import base
 
@@ -77,11 +78,12 @@ class MyppyEnv(base.MyppyEnv):
                         self._check_glibc_symbols(fpath)
                         self._strip(fpath)
                         self._adjust_rpath(fpath)
-                    elif "." not in fnm:
+                    elif "." not in fnm or os.access(fpath, os.X_OK):
                         fileinfo = self.bt("file",fpath)
                         if "executable" in fileinfo and "ELF" in fileinfo:
                             self._strip(fpath)
                             self._adjust_rpath(fpath)
+                            self._adjust_interp_path(fpath)
         super(MyppyEnv,self).record_files(recipe,files)
 
     def _strip(self,fpath):
@@ -119,6 +121,21 @@ class MyppyEnv(base.MyppyEnv):
             rpath = "/".join(backrefs) + "/lib"
             rpath = "${ORIGIN}:${ORIGIN}/" + rpath
             self.do("patchelf","--set-rpath",rpath,fpath)
+
+    def _adjust_interp_path(self,fpath):
+        #  Tweak executables so they use the normal linux loader, not
+        #  the special lsb-specified one.  This trades lsb-compatability
+        #  for ability to run out-of-the-box on more linuxen.
+        if os.path.exists(os.path.join(self.PREFIX,"bin","patchelf")):
+            try:
+                interp = self.bt("patchelf", "--print-interpreter", fpath)
+            except subprocess.CalledProcessError:
+                raise
+            else:
+                if interp.strip() == "/lib/ld-lsb.so.3":
+                    print "ADJUSTING INTERPRETER PATH", fpath
+                    new_interp = "/lib/ld-linux.so.2"
+                    self.do("patchelf", "--set-interpreter", new_interp, fpath)
 
     def load_recipe(self,recipe):
         return self._load_recipe_subclass(recipe,MyppyEnv,_linux_recipes)
