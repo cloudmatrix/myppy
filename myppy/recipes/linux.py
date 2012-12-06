@@ -147,8 +147,6 @@ class cmake(base.cmake,Recipe):
 class python27(base.python27,Recipe,):
     """Install the basic Python interpreter, with myppy support."""
     DEPENDENCIES = ["lib_openssl"]
-    def _configure(self):
-        super(python27,self)._configure()
 
     def _post_config_patch(self):
         super(python27,self)._post_config_patch()
@@ -172,6 +170,26 @@ class python27(base.python27,Recipe,):
                 if ln.strip() == "def add_multiarch_paths(self):":
                     yield "        return\n"
         self._patch_build_file("setup.py",remove_multiarch_paths)
+        #  Fix bad handling of -R option to the compiler.
+        def remove_runtime_library_support(lines):
+            for ln in lines:
+                yield ln
+                if ln.strip().startswith("def runtime_library_dir_option("):
+                    yield "        # Hardcode this for lcc/lcc++\n"
+                    yield "        return '-L' + dir\n"
+        self._patch_build_file("Lib/distutils/unixccompiler.py",
+                               remove_runtime_library_support)
+
+    def install(self):
+        #  Hard-code distutils.util.get_platform() to return linux-i686
+        #  We can't do this until after the build has completed.
+        super(python27, self).install()
+        def hardcode_platform(lines):
+            for ln in lines:
+                yield ln
+                if ln.strip() == "def get_platform ():":
+                    yield "    return 'linux-i686'\n\n"
+        self._patch_file(os.path.join(self.PREFIX, "lib/python2.7/distutils/util.py"),hardcode_platform)
 
 class patchelf(Recipe):
     SOURCE_URL = "http://hydra.nixos.org/build/114505/download/2/patchelf-0.5.tar.bz2"
