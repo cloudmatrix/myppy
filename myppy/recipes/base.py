@@ -251,7 +251,7 @@ class cmake(Recipe):
 class python27(Recipe):
     DEPENDENCIES = ["lib_zlib","lib_readline","lib_sqlite3","lib_bz2"]
     SOURCE_URL = "http://www.python.org/ftp/python/2.7.3/Python-2.7.3.tgz"
-    CONFIGURE_ARGS = ("--enable-shared",)
+    CONFIGURE_ARGS = ("--enable-shared", "--disable-static")
     def _patch(self):
         #  Add some builtin modules:
         #    * fcntl  (handy for use with esky)

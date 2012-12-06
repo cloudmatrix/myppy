@@ -66,6 +66,7 @@ class MyppyEnv(base.MyppyEnv):
         self.env["LSBCC_INCLUDES"] = os.path.join(self.PREFIX,"opt/lsb/include")
         self.env["LSBCXX_INCLUDES"] = os.path.join(self.PREFIX,"opt/lsb/include")
         self.env["LSB_SHAREDLIBPATH"] = os.path.join(self.PREFIX,"lib")
+        self.env["LSBCC_SHAREDLIBS"] = "python:python2.7:crypto:readline:bz2"
         self.env["LSBCC_VERBOSE"] = os.path.join(self.PREFIX,"lib")
 
     def record_files(self,recipe,files):
