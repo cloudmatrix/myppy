@@ -50,6 +50,11 @@ class MyppyEnv(base.MyppyEnv):
     def LD_LIBRARY_PATH(self):
         return os.path.join(self.PREFIX,"lib")
 
+    @property
+    def PKG_CONFIG_PATH(self):
+        return ":".join((os.path.join(self.PREFIX,"lib/pkgconfig"),
+                         os.path.join(self.PREFIX,"opt/lsb/lib/pkgconfig"),))
+
     def __init__(self,rootdir):
         super(MyppyEnv,self).__init__(rootdir)
         if not os.path.exists(os.path.join(self.PREFIX,"lib")):
@@ -60,8 +65,8 @@ class MyppyEnv(base.MyppyEnv):
         self.env["CFLAGS"] = self.CFLAGS
         self.env["CXXFLAGS"] = self.CXXFLAGS
         self._add_env_path("PATH",os.path.join(self.PREFIX,"opt/lsb/bin"),1)
-        self._add_env_path("PKG_CONFIG_PATH",os.path.join(self.PREFIX,
-                                                          "lib/pkgconfig"))
+        self._add_env_path("PKG_CONFIG_PATH",self.PKG_CONFIG_PATH)
+        self.env["PKG_CONFIG_SYSROOT_DIR"] = self.PREFIX.rstrip("/")
         self.env["LSBCC_LIBS"] = os.path.join(self.PREFIX,"opt/lsb/lib")
         self.env["LSBCC_INCLUDES"] = os.path.join(self.PREFIX,"opt/lsb/include")
         self.env["LSBCXX_INCLUDES"] = os.path.join(self.PREFIX,"opt/lsb/include")

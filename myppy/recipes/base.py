@@ -517,7 +517,6 @@ class lib_wxwidgets_base(Recipe):
     SOURCE_URL = "http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.11.0/wxPython-src-2.8.11.0.tar.bz2"
     CONFIGURE_ARGS = ("--with-opengl","--enable-unicode","--enable-optimize","--enable-debug_flag",)
     def _unpack(self):
-        # clean up the workdir after building other qt versions
         try:
             workdir = self._get_builddir()
         except (IndexError,EnvironmentError,RuntimeError,):

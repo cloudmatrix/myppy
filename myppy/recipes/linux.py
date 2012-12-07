@@ -45,7 +45,7 @@ class Recipe(base.Recipe):
 
     @property
     def PKG_CONFIG_PATH(self):
-        return os.path.join(self.PREFIX,"lib/pkgconfig")
+        return self.target.PKG_CONFIG_PATH
 
     @property
     def CONFIGURE_VARS(self):
