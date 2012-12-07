@@ -208,6 +208,21 @@ class PyRecipe(Recipe):
         self._generic_pyinstall()
 
 
+class PipPyRecipe(PyRecipe):
+    """
+    Some Python modules with C-extensions require adjusting RPATH for so files.
+    """
+    DEPENDENCIES = ["py_pip","py_setuptools"]
+    PYPI_PKG = ""
+    def fetch(self):
+        pass
+    def build(self):
+        pass
+    def install(self):
+        self.target.do("env")
+        self.target.do("pip","install",self.PYPI_PKG)
+
+
 class CMakeRecipe(Recipe):
     BUILD_DEPENDENCIES = ["cmake"]
     def _configure(self):
@@ -677,11 +692,11 @@ class py_pypy(Recipe):
 
 class lib_postgresql(Recipe):
     DEPENDENCIES = ["lib_openssl", "lib_zlib"]
-    SOURCE_URL = "ftp://ftp.postgresql.org/pub/source/v9.0.2/postgresql-9.0.2.tar.gz"
-    SOURCE_MD5 = "30e87e704e75c2c5b141182b0a37bbf0"
+    SOURCE_URL = "ftp://ftp.postgresql.org/pub/source/v9.1.4/postgresql-9.1.4.tar.gz"
+    SOURCE_MD5 = "07c5e02e0b5e9b4c82a6d40443a3102f"
     @property
     def CONFIGURE_ARGS(self):
-        return ("--disable-shared","--enable-depend","--without-tcl","--without-perl",
+        return ("--enable-shared","--enable-depend","--without-tcl","--without-perl",
             "--without-python","--without-readline","--without-krb5","--without-gssapi",
             "--disable-nls","--without-pam","--enable-integer-datetimes","--with-openssl",
             "--enable-thread-safety","--with-zlib","--without-ldap", "--disable-debug",
@@ -690,8 +705,8 @@ class lib_postgresql(Recipe):
 
 class lib_mysql(Recipe):
     DEPENDENCIES = ["lib_openssl", "lib_zlib"]
-    SOURCE_URL = "http://downloads.mysql.com/archives/mysql-5.0/mysql-5.0.91.tar.gz"
-    SOURCE_MD5 = "e28f93b1a1b10b028135c1d51bbd4c46"
+    SOURCE_URL = "http://downloads.mysql.com/archives/mysql-5.1/mysql-5.1.62.tar.gz"
+    SOURCE_MD5 = "58843ac04d3e8bb6ff973938e7e88a28"
     # libmysql is statically linked
     @property
     def CONFIGURE_ARGS(self):
@@ -702,12 +717,12 @@ class lib_mysql(Recipe):
             "--without-debug", "--with-charset=utf8", "--with-collation=utf8_general_ci",
             "--without-embedded-privilege-control", "--without-embedded-server",
             "--without-bench", "--enable-assembler", "--without-isam", "--without-innodb",
-            "--without-extra-tools", "--with-openssl=%s" % self.target.PREFIX,
+            "--without-extra-tools", "--with-ssl=%s" % self.target.PREFIX,
             "--without-berkeley-db", "--with-geometry", "--disable-profiling",
             "--with-zlib-dir=%s"%self.target.PREFIX)
 
     def install(self):
-        self._generic_makeinstall()
+        self._generic_make(target='install')
         # create symlinks in lib folder
         with cd(os.path.join(self.target.PREFIX,'lib')):
             os.system('ln -s mysql/libmysqlclient.a')
@@ -717,6 +732,15 @@ class lib_expat(Recipe):
     SOURCE_URL = "http://downloads.sourceforge.net/project/expat/expat/2.0.1/expat-2.0.1.tar.gz"
     SOURCE_MD5 = "ee8b492592568805593f81f8cdf2a04c"
     CONFIGURE_ARGS = ["--enable-static", "--enable-shared"]
+
+
+class lib_openldap(Recipe):
+    SOURCE_URL = "ftp://ftp.openldap.org/pub/OpenLDAP/openldap-release/openldap-2.4.31.tgz"
+    SOURCE_MD5 = "804c6cb5698db30b75ad0ff1c25baefd"
+    CONFIGURE_ARGS = [
+        '--disable-slapd', # Disable server libraries.
+        '--disable-static',
+    ]
 
 
 class py_PIL(PyRecipe):
@@ -742,8 +766,8 @@ class py_mysql_python(PyRecipe):
 
 class py_psycopg2(PyRecipe):
     DEPENDENCIES = ["lib_postgresql","py_setuptools"]
-    SOURCE_URL = "http://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.3.2.tar.gz"
-    SOURCE_MD5 = "0104a756683138c644019c37744fe091"
+    SOURCE_URL = "http://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.4.5.tar.gz"
+    SOURCE_MD5 = "075e4df465e9a863f288d5bdf6e6887e"
     SETUP_CFG = """[build_ext]
 define=PSYCOPG_EXTENSIONS,PSYCOPG_NEW_BOOLEAN,HAVE_PQFREEMEM
 
@@ -799,3 +823,72 @@ class py_m2crypto(PyRecipe):
         with cd(os.path.join(workdir,relpath)):
             self.target.do(*cmd,env=env)
 
+
+class py_p4python121(PyRecipe):
+    # Install Perforce python bindings
+    # This module needs GCC 3.4 to work on older machines and to pass
+    # glibc symbol verification
+    DEPENDENCIES = ["py_setuptools"]
+    SOURCE_URL = "ftp://ftp.perforce.com/perforce/r12.1/bin.tools/p4python.tgz"
+    P4API_URL = "ftp://ftp.perforce.com/perforce/r12.1/bin.linux26x86/p4api.tgz"
+
+    def fetch(self):
+        pass
+
+    def build(self):
+        # fetch and upnpack source
+        src = self.target.fetch(self.SOURCE_URL)
+        self._unpack_tarball(src,self.target.builddir)
+        self.workdir = os.path.join(self.target.builddir, 'p4python-2012.1.442152')
+        # fetch P4API
+        src = self.target.fetch(self.P4API_URL)
+        self._unpack_tarball(src,self.workdir)
+        p4api_dir = os.path.join(self.workdir, 'p4api-2012.1.442152')
+
+        # Generate the setup.cfg file.
+        with cd(self.workdir):
+            f = open("setup.cfg", "w")
+            f.write("[p4python_config]\n")
+            f.write("p4_api=%s" % p4api_dir)
+            f.close()
+
+    def install(self):
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install"]
+        with cd(self.workdir):
+            self.target.do(*cmd)
+
+
+class py_simplejson26(PyRecipe):
+    DEPENDENCIES = ["py_setuptools"]
+    SOURCE_URL = "http://pypi.python.org/packages/source/s/simplejson/simplejson-2.6.0.tar.gz"
+    SOURCE_MD5 = "43b43b22f190a999c79a2af0c504e3a6"
+
+    def install(self,relpath="",args=[],env={}):
+        workdir = self._get_builddir()
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install_lib"]
+        cmd.extend(args)
+        with cd(os.path.join(workdir,relpath)):
+            self.target.do(*cmd,env=env)
+
+
+class py_gevent10(PyRecipe):
+    DEPENDENCIES = ["py_setuptools"]
+    SOURCE_URL = "https://gevent.googlecode.com/files/gevent-1.0b2.tar.gz"
+    SOURCE_MD5 = "dead736753e6d0c780e1295915d9f5b1"
+
+    def install(self,relpath="",args=[],env={}):
+        workdir = self._get_builddir()
+        cmd = [self.target.PYTHON_EXECUTABLE,"setup.py","install_lib"]
+        cmd.extend(args)
+        with cd(os.path.join(workdir,relpath)):
+            self.target.do(*cmd,env=env)
+
+
+class py_greenlet(PipPyRecipe):
+    PYPI_PKG = "greenlet"
+
+
+class py_ldap(PipPyRecipe):
+    DEPENDENCIES = ['lib_openldap']
+    # Version 2.4.6 compiles correctly. Newer need some customization.
+    PYPI_PKG = "python-ldap==2.4.6"
