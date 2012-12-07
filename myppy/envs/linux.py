@@ -82,12 +82,14 @@ class MyppyEnv(base.MyppyEnv):
                 if fpath == os.path.realpath(fpath):
                     if fnm.endswith(".so") or ".so." in fnm:
                         self._check_glibc_symbols(fpath)
-                        self._strip(fpath)
+                        if recipe not in ("python27",):
+                            self._strip(fpath)
                         self._adjust_rpath(fpath)
                     elif "." not in fnm or os.access(fpath, os.X_OK):
                         fileinfo = self.bt("file",fpath)
                         if "executable" in fileinfo and "ELF" in fileinfo:
-                            self._strip(fpath)
+                            if recipe not in ("python27",):
+                                self._strip(fpath)
                             self._adjust_rpath(fpath)
                             self._adjust_interp_path(fpath)
         super(MyppyEnv,self).record_files(recipe,files)
