@@ -45,7 +45,9 @@ LONG_DESC = info["__doc__"]
 PACKAGES = ["myppy","myppy.tests","myppy.envs","myppy.recipes"]
 SCRIPTS = ["scripts/myppy"]
 EXT_MODULES = []
-PKG_DATA = {}
+PKG_DATA = {
+  "myppy": ["recipes/*.patch"],
+}
 
 setup(name=NAME,
       version=VERSION,
